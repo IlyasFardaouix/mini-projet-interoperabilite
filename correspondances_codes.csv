@@ -1,0 +1,50 @@
+domaine;source;code_source;libelle_source;systeme_cible;code_cible;libelle_cible;unite_source;unite_ucum;conversion;categorie_fhir;remarque
+Observation;H1;TA_SYS;Tension systolique;http://loinc.org;8480-6;Systolic blood pressure;mm[Hg];mm[Hg];;vital-signs;À FUSIONNER avec TA_DIA (même séjour, même heure) dans une Observation 85354-9 à 2 composantes
+Observation;H1;TA_DIA;Tension diastolique;http://loinc.org;8462-4;Diastolic blood pressure;mm[Hg];mm[Hg];;vital-signs;Composante de 85354-9
+Observation;H1/H2;(panel);Tension artérielle;http://loinc.org;85354-9;Blood pressure panel with all children optional;;mm[Hg];;vital-signs;Exigé par le profil FHIR vital signs
+Observation;H1;FC;Fréquence cardiaque;http://loinc.org;8867-4;Heart rate;/min;/min;;vital-signs;
+Observation;H1;SPO2;Saturation en oxygène;http://loinc.org;59408-5;Oxygen saturation in Arterial blood by Pulse oximetry;%;%;;vital-signs;Ajouter AUSSI le code 2708-6 (Oxygen saturation in Arterial blood) exigé par le profil vital signs
+Observation;H1;TEMP;Température;http://loinc.org;8310-5;Body temperature;Cel;Cel;;vital-signs;
+Observation;H1;GLY;Glycémie;http://loinc.org;2339-0;Glucose [Mass/volume] in Blood;g/L;mg/dL;x100;laboratory;H2 stocke en mg/dL : convertir pour comparer
+Observation;H1;HBA1C;Hémoglobine glyquée;http://loinc.org;4548-4;Hemoglobin A1c/Hemoglobin.total in Blood;%;%;;laboratory;
+Observation;H2;79892-6;Right eye IOP;http://loinc.org;79892-6;Right eye Intraocular pressure;mm[Hg];mm[Hg];;exam;Seuil d'alerte > 21 mmHg
+Observation;H2;79893-4;Left eye IOP;http://loinc.org;79893-4;Left eye Intraocular pressure;mm[Hg];mm[Hg];;exam;Seuil d'alerte > 21 mmHg
+Condition;H1;DIAB2;Diabète de type 2;http://hl7.org/fhir/sid/icd-10;E11.9;;;;;problem-list-item;
+Condition;H1;HTA;Hypertension artérielle essentielle;http://hl7.org/fhir/sid/icd-10;I10;;;;;problem-list-item;
+Condition;H1;ASTM;Asthme;http://hl7.org/fhir/sid/icd-10;J45.9;;;;;problem-list-item;
+Condition;H1;IC;Insuffisance cardiaque;http://hl7.org/fhir/sid/icd-10;I50.9;;;;;problem-list-item;
+Condition;H1;CDI;Cardiopathie ischémique chronique;http://hl7.org/fhir/sid/icd-10;I25.9;;;;;problem-list-item;
+Condition;H1;BPCO;Bronchopneumopathie chronique obstructive;http://hl7.org/fhir/sid/icd-10;J44.9;;;;;problem-list-item;
+Condition;H1;IRC;Insuffisance rénale chronique;http://hl7.org/fhir/sid/icd-10;N18.9;;;;;problem-list-item;
+Condition;H1;ANEM;Anémie;http://hl7.org/fhir/sid/icd-10;D64.9;;;;;problem-list-item;
+Condition;H1;HYPOT;Hypothyroïdie;http://hl7.org/fhir/sid/icd-10;E03.9;;;;;problem-list-item;
+Condition;H1;ULCG;Ulcère gastrique;http://hl7.org/fhir/sid/icd-10;K25.9;;;;;problem-list-item;
+Condition;H1;PNM;Pneumonie;http://hl7.org/fhir/sid/icd-10;J18.9;;;;;problem-list-item;
+Condition;H1;MIG;Migraine;http://hl7.org/fhir/sid/icd-10;G43.9;;;;;problem-list-item;
+Condition;H1;DIAB1;Diabète de type 1;http://hl7.org/fhir/sid/icd-10;E10.9;;;;;problem-list-item;
+Condition;H1;DT2;(saisie non normalisée);;;;;;;;NON MAPPÉ volontairement (cas D9)
+Condition;H2;H40.1;Primary open-angle glaucoma;http://hl7.org/fhir/sid/icd-10;H40.1;Glaucome primitif à angle ouvert;;;;encounter-diagnosis;
+Condition;H2;H25.9;Senile cataract, unspecified;http://hl7.org/fhir/sid/icd-10;H25.9;Cataracte sénile;;;;encounter-diagnosis;
+Condition;H2;E11.3;Type 2 diabetes mellitus with ophthalmic complications;http://hl7.org/fhir/sid/icd-10;E11.3;Rétinopathie diabétique;;;;encounter-diagnosis;Code dague (étiologie) — à associer à H36.0*
+Condition;H2;H36.0;Diabetic retinopathy;http://hl7.org/fhir/sid/icd-10;H36.0;Rétinopathie diabétique;;;;encounter-diagnosis;Code astérisque (manifestation) — toujours avec E11.3†
+Condition;H2;E11.3;Type 2 diabetes mellitus with ophthalmic complications;http://hl7.org/fhir/sid/icd-10;E11.3;Œdème maculaire diabétique;;;;encounter-diagnosis;Code dague (étiologie) — à associer à H36.0*
+Condition;H2;H36.0;Diabetic retinopathy with macular edema;http://hl7.org/fhir/sid/icd-10;H36.0;Œdème maculaire diabétique;;;;encounter-diagnosis;Code astérisque (manifestation) — toujours avec E11.3†
+Condition;H2;H35.3;Degeneration of macula and posterior pole (AMD);http://hl7.org/fhir/sid/icd-10;H35.3;Dégénérescence maculaire liée à l'âge;;;;encounter-diagnosis;
+Condition;H2;H10.9;Conjunctivitis, unspecified;http://hl7.org/fhir/sid/icd-10;H10.9;Conjonctivite;;;;encounter-diagnosis;
+Condition;H2;H52.1;Myopia;http://hl7.org/fhir/sid/icd-10;H52.1;Myopie;;;;encounter-diagnosis;
+Condition;H2;H04.1;Other disorders of lacrimal gland (dry eye syndrome);http://hl7.org/fhir/sid/icd-10;H04.1;Sécheresse oculaire;;;;encounter-diagnosis;
+Condition;H2;H16.9;Keratitis, unspecified;http://hl7.org/fhir/sid/icd-10;H16.9;Kératite;;;;encounter-diagnosis;
+AllergyIntolerance;H1;ALL_PENI;Pénicilline;http://snomed.info/sct;(à coder);;;;;;Coder la substance en SNOMED CT via le navigateur officiel
+AllergyIntolerance;H1;ALL_IODE;Produits de contraste iodés;http://snomed.info/sct;(à coder);;;;;;Coder la substance en SNOMED CT via le navigateur officiel
+AllergyIntolerance;H1;ALL_FLUO;Fluorescéine;http://snomed.info/sct;(à coder);;;;;;Coder la substance en SNOMED CT via le navigateur officiel
+AllergyIntolerance;H1;ALL_LATEX;Latex;http://snomed.info/sct;(à coder);;;;;;Coder la substance en SNOMED CT via le navigateur officiel
+AllergyIntolerance;H1;ALL_AINS;Anti-inflammatoires non stéroïdiens;http://snomed.info/sct;(à coder);;;;;;Coder la substance en SNOMED CT via le navigateur officiel
+Encounter.class;H1;URG;Urgences;http://terminology.hl7.org/CodeSystem/v3-ActCode;EMER;emergency;;;;;H2 : visit_type 1
+Encounter.class;H1;CONS;Consultation;http://terminology.hl7.org/CodeSystem/v3-ActCode;AMB;ambulatory;;;;;H2 : visit_type 2
+Encounter.class;H1;HOSP;Hospitalisation;http://terminology.hl7.org/CodeSystem/v3-ActCode;IMP;inpatient encounter;;;;;H2 : visit_type 3
+Patient.gender;H1;M;Masculin;http://hl7.org/fhir/administrative-gender;male;Male;;;;;H2 : sex 1
+Patient.gender;H1;F;Féminin;http://hl7.org/fhir/administrative-gender;female;Female;;;;;H2 : sex 2
+AllergyIntolerance.criticality;H1;ELEVEE;Élevée;http://hl7.org/fhir/allergy-intolerance-criticality;high;High Risk;;;;;
+AllergyIntolerance.criticality;H1;FAIBLE;Faible;http://hl7.org/fhir/allergy-intolerance-criticality;low;Low Risk;;;;;
+Consent.status;H1;ACTIF;Actif;http://hl7.org/fhir/consent-state-codes;active;Active;;;;;H2 : active
+Consent.status;H1;REFUSE;Refusé;http://hl7.org/fhir/consent-state-codes;rejected;Rejected;;;;;"H2 : refused ; en FHIR R4 un refus peut aussi s'exprimer par provision.type = deny"

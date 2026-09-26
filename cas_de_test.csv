@@ -1,0 +1,19 @@
+cas;patient;id_H1;id_H2;anomalie_ou_objectif;comportement_attendu_du_connecteur
+S1;Youssef Alaoui;P1-0106;P2-0051;"Nominal : référence + rapprochement par CIN + retour avec rétinographie ; allergie fluorescéine transmise";"Transfert accepté ; Patient rapproché (même CIN) et mis à jour ; ImagingStudy + Observations retour"
+S2;Fatima Bennani;P1-0107;P2-0052;Seuil dépassé : pression intraoculaire > 21 mmHg au retour -> alerte;"Transfert accepté ; alerte PIO > 21 mmHg générée au retour"
+D1;Omar Idrissi;P1-0108;P2-0053;Consentement REFUSÉ côté H1 -> envoi aller bloqué (HTTP 403 + OperationOutcome);"Refus 403 + OperationOutcome ; AuditEvent « accès refusé »"
+D2;Salma Tazi;P1-0109;P2-0054;Consentement REFUSÉ côté H2 -> compte rendu retour bloqué;"Retour bloqué ; aller OK"
+D3;Karim Berrada;P1-0110;P2-0055;Donnée en conflit : groupe sanguin A+ (H1) vs A- (H2) -> pas d'écrasement, signalement;"Conflit groupe sanguin signalé ; aucune valeur écrasée"
+S3;Nadia Chraibi;P1-0111;;Nominal création : patiente absente de H2 -> nouveau dossier créé à la clinique;Patient créé dans H2 (aucun rapprochement)
+D4;Rachid Ouazzani;P1-0112;P2-0056;CIN absent côté H1 -> rapprochement par traits (nom, prénom, naissance, sexe) = match probable à valider;Match probabiliste proposé, validation humaine requise
+D5;Youcef El Fassi;P1-0113;P2-0057;Même CIN mais orthographe différente (El Fassi Youcef / Elfassi Youssef) -> validation humaine;Match par CIN avec alerte divergence de nom
+D6;Khadija Amrani;P1-0114;P2-0058;Homonymes (même nom, prénom, naissance) mais CIN différents -> NE PAS fusionner;"Aucune fusion ; deux patients distincts"
+D7;Yasmine Lahlou;P1-0115;;Mineure (16 ans), pas de CIN, consentement signé par le représentant légal;"Transfert accepté (représentant légal) ; identifiant = IPP seul"
+D8;Mehdi Kettani;P1-0116;;Date de naissance manquante -> rejet par le profil Patient local (birthDate obligatoire);Patient rejeté par le profil (birthDate min=1)
+D9;Hassan Sebti;P1-0117;;Code local inconnu 'DT2' (saisie non normalisée) -> Condition non codée + file de revue;Condition transmise en texte seul + file de revue
+D10;Latifa Naciri;P1-0118;;Glycémie sans unité -> Observation rejetée (valueQuantity sans unité UCUM);Observation glycémie rejetée (unité absente)
+D11;Adil Zniber;P1-0119;;SpO2 = 150 % (valeur impossible) -> rejet par contrôle de plausibilité;Observation SpO2 rejetée (hors plage 0-100 %)
+D12;Samira Tahiri;P1-0120;;Date de sortie antérieure à l'admission -> Encounter invalide (invariant FHIR per-1);Encounter rejeté (per-1 : start <= end)
+D13;Imane Mekouar;;P2-0059;birth_date au format JJ/MM/AAAA dans une base ISO -> erreur de parsing, rejet;Document rejeté (date non ISO 8601)
+D14;Hamza Squalli;;P2-0060;Étude d'imagerie référencée mais absente du PACS -> ImagingStudy signalée « non récupérable »;ImagingStudy transmise, instances non récupérables (404 PACS) signalées
+D15;(tous);;;Panne : serveur FHIR H2 / Orthanc arrêté pendant un transfert;Serveur FHIR H2 arrêté : message mis en file, rejoué au redémarrage, aucune perte
