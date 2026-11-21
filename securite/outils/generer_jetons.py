@@ -33,6 +33,7 @@ sys.path.insert(0, str(RACINE))
 
 from securite.config import PORTEES_CONNUES                      # noqa: E402
 from securite.jetons import empreinte_complete                   # noqa: E402
+from securite.chiffrement import nouvelle_cle                  # noqa: E402
 
 DOSSIER = RACINE / "securite"
 REGISTRE = DOSSIER / "registre_jetons.json"
@@ -185,7 +186,11 @@ def main(argv=None) -> int:
                 "SEC_JWT_SECRET=" + secrets.token_urlsafe(48),
                 # Sessions du personnel : secret propre a ce service, jamais partage.
                 "SEC_SESSION_SECRET=" + secrets.token_urlsafe(48),
-            ]))
+                # Chiffrement au repos des dossiers (docs/securite/chiffrement.md).
+                # A SAUVEGARDER hors du poste : sans elle, les donnees chiffrees sont perdues.
+                # Seule H2 chiffre ses dossiers dans l'application (MongoDB) ; Oracle (H1)
+                # repose sur le chiffrement du disque.
+            ] + (["H2_CLE_CHIFFREMENT=" + nouvelle_cle()] if service == "h2" else [])))
             print("  + valeurs de service -> " + str(env))
 
     print("\nRegistre : " + str(REGISTRE) + "  (" + str(len(registre["clients"])) + " clients)")

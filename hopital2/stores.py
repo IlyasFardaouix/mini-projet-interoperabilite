@@ -199,3 +199,125 @@ class StoreMongo:
     @_garde
     def remplacer(self, doc: dict) -> None:
         self.col.replace_one({"patient_id": doc["patient_id"]}, copy.deepcopy(doc), upsert=True)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+class StoreMongoChiffre(StoreMongo):
+    """MongoDB avec dossiers chiffrés au repos (securite/chiffrement.py, AES-256-GCM).
+
+    Un document en base ne contient plus que :
+      patient_id   identifiant technique P2-xxxx (non nominatif), en clair pour les accès directs
+      _idx         index aveugles (HMAC) : CIN, identifiants externes, études d'imagerie
+      _cle         identifiant de la clé utilisée
+      _chiffre     le dossier COMPLET chiffré (identité, visites, consentement, audit…)
+
+    La clé n'est pas dans la base (H2_CLE_CHIFFREMENT, .env du poste) : une copie de la
+    base ou d'une sauvegarde est illisible. Le chiffre est lié au patient_id : recopié
+    sur un autre dossier, il ne se déchiffre plus. Les anciens documents en clair restent
+    lisibles et sont chiffrés à leur prochaine écriture (ou par chiffrer_mongo.py).
+    """
+
+    def __init__(self, uri: Optional[str] = None, nom_base: str = "hopital2", client=None, *, chiffreur):
+        super().__init__(uri, nom_base, client)
+        self.chiffreur = chiffreur
+        try:
+            for champ in ("_idx.cin", "_idx.ext", "_idx.etudes"):
+                self.col.create_index(champ)
+        except Exception:
+            pass
+
+    # -- conversion --------------------------------------------------------
+    def _index(self, doc: dict) -> dict:
+        c = self.chiffreur
+        externes = set()
+        for e in doc.get("_external_ids") or []:
+            if e.get("value"):
+                externes.add(c.index("ext", e.get("system") or "", e["value"]))
+                externes.add(c.index("ext", "", e["value"]))          # recherche sans système
+        etudes = {c.index("etude", i["study_uid"]) for v in doc.get("visits") or []
+                  for i in v.get("imaging") or [] if i.get("study_uid")}
+        return {"cin": c.index("cin", doc["national_id"]) if doc.get("national_id") else None,
+                "ext": sorted(externes), "etudes": sorted(etudes)}
+
+    def _vers_base(self, doc: dict) -> dict:
+        from bson import json_util
+        pid = doc["patient_id"]
+        return {"patient_id": pid, "_idx": self._index(doc), "_cle": self.chiffreur.courante,
+                # JSON étendu MongoDB : dates et types BSON conservés à l'identique.
+                "_chiffre": self.chiffreur.chiffrer(json_util.dumps(doc).encode("utf-8"), "patient:" + pid)}
+
+    def _depuis_base(self, brut: Optional[dict]) -> Optional[dict]:
+        from bson import json_util
+        from securite.chiffrement import ErreurChiffrement
+        if brut is None:
+            return None
+        brut.pop("_id", None)
+        if "_chiffre" not in brut:
+            return brut                                    # ancien document en clair
+        try:
+            return json_util.loads(self.chiffreur.dechiffrer(brut["_chiffre"], "patient:" + brut["patient_id"]))
+        except ErreurChiffrement as exc:
+            raise StoreIndisponible(f"Dossier {brut.get('patient_id')} illisible : clé absente "
+                                    "ou donnée altérée.") from exc
+
+    # -- lecture -----------------------------------------------------------
+    @_garde
+    def get(self, pid):
+        return self._depuis_base(self.col.find_one({"patient_id": pid}, {"_id": 0}))
+
+    @_garde
+    def all(self, limit=100):
+        return [self._depuis_base(d) for d in self.col.find({}, {"_id": 0}).limit(limit)]
+
+    @_garde
+    def find_all_by_identifier(self, system, value) -> list:
+        c = self.chiffreur
+        filtres = []
+        if system in (None, SYSTEM_CIN):
+            filtres += [{"_idx.cin": c.index("cin", value)}, {"national_id": value}]
+        if system in (None, SYSTEM_ID_H2):
+            filtres.append({"patient_id": value})
+        filtres += [{"_idx.ext": c.index("ext", system or "", value)},
+                    {"_external_ids": {"$elemMatch": {"value": value, **({"system": system} if system else {})}}}]
+        return [self._depuis_base(d) for d in self.col.find({"$or": filtres}, {"_id": 0})]
+
+    @_garde
+    def find_by_study_uid(self, study_uid: str):
+        return self._depuis_base(self.col.find_one(
+            {"$or": [{"_idx.etudes": self.chiffreur.index("etude", study_uid)},
+                     {"visits.imaging.study_uid": study_uid}]}, {"_id": 0}))
+
+    # -- écriture ----------------------------------------------------------
+    @_garde
+    def creer(self, doc: dict, finaliser: Optional[Callable[[dict], None]] = None) -> dict:
+        from pymongo.errors import DuplicateKeyError
+        attribue = not doc.get("patient_id")
+        for _ in range(5):
+            d = copy.deepcopy(doc)
+            if attribue:
+                d["patient_id"] = self.next_id()
+            if finaliser:
+                finaliser(d)
+            try:
+                self.col.insert_one(self._vers_base(d))
+                return d
+            except DuplicateKeyError:
+                if not attribue:
+                    raise DejaExistant(d["patient_id"])
+        raise StoreIndisponible("Impossible d'attribuer un identifiant patient (conflits répétés).")
+
+    @_garde
+    def remplacer(self, doc: dict) -> None:
+        self.col.replace_one({"patient_id": doc["patient_id"]}, self._vers_base(doc), upsert=True)
+
+    @_garde
+    def rechiffrer_tout(self) -> dict:
+        """Chiffre les documents encore en clair et ceux d'une ancienne clé (rotation)."""
+        bilan = {"chiffres": 0, "deja": 0}
+        for brut in list(self.col.find({}, {"_id": 0})):
+            if "_chiffre" in brut and not self.chiffreur.a_rechiffrer(brut["_chiffre"]):
+                bilan["deja"] += 1
+                continue
+            self.remplacer(self._depuis_base(brut))
+            bilan["chiffres"] += 1
+        return bilan

@@ -17,9 +17,9 @@ Légende : ✅ respecté dans le prototype · ⚠️ partiel · ❌ absent · �
 | --- | --- |
 | Consentement de la personne | ✅ |
 | Données sensibles (santé) : sécurité renforcée | ✅ |
-| Sécurité et confidentialité du traitement | ✅ (limites du prototype ci-dessous) |
+| Sécurité et confidentialité du traitement | ✅ dont chiffrement au repos côté H2 (limites ci-dessous) |
 | Traçabilité des accès | ✅ |
-| Finalité et proportionnalité (minimisation) | ⚠️ adresse complète exportée par H2 |
+| Finalité et proportionnalité (minimisation) | ✅ H2 aligné sur H1 : ville et pays, sans rue ni tiers |
 | Durée de conservation | ⚠️ fixée pour le journal d'accès, pas pour les journaux métier |
 | Droit d'opposition | ✅ retrait du consentement |
 | Droit d'accès | ✅ route réservée au DPO, sur les deux établissements |
@@ -47,8 +47,7 @@ Voir [`consentement.md`](consentement.md).
 | Exigence | Preuve | État |
 | --- | --- | --- |
 | Finalité déterminée | continuité des soins entre le CHU et la clinique ; contrôlée par le consentement (`finalites`) | ✅ |
-| Données adéquates et non excessives | H1 n'envoie pas la rue (`hopital1/mapping_H1_FHIR.md`) ; annuaire et journal patient exclus par défaut, chacun derrière sa portée | ⚠️ |
-| Écart constaté | **H2 exporte l'adresse complète (rue) et le téléphone vers H1** (`adaptateur_h2_fhir.py`, `build_patient`). Les deux établissements n'appliquent pas la même règle | ❌ à trancher |
+| Données adéquates et non excessives | ni H1 ni H2 n'envoient la rue ; H2 n'envoie plus la personne à prévenir (`echange.minimiser_patient`) ; annuaire et journal patient exclus par défaut, chacun derrière sa portée | ✅ |
 | Données exactes | conflits signalés, jamais d'écrasement silencieux (groupe sanguin, identité) | ✅ |
 | Durée de conservation limitée | journal d'accès : 1 an (`politique-securite.md` § 8.6) ; journaux métier (`journal_echange`, `_audit_log`) : non fixée, aucune purge | ⚠️ |
 
@@ -71,8 +70,8 @@ Voir [`consentement.md`](consentement.md).
 | Images médicales | PACS non exposé (boucle locale, authentification), passerelle avec portée et consentement, désidentification possible ([`../imagerie.md`](../imagerie.md)) | ✅ |
 | Traçabilité | journal d'accès chaîné et pseudonymisé ; journaux métier ; nom de la personne connectée | ✅ |
 | Intégrité | chaînage du journal ; contrôle d'appartenance des images à l'étude ; rejeu sans doublon | ✅ |
-| Confidentialité au repos | MongoDB et Oracle non chiffrés, fichiers `.env` en clair sur le poste | ❌ |
-| Jetons partagés historiques | `H1_API_TOKEN` et `H2_TOKEN` encore acceptés, avec toutes les portées | ⚠️ |
+| Confidentialité au repos | H2 : dossiers MongoDB et file d'envoi chiffrés (AES-256-GCM, clé hors base, index aveugles) ; H1 et Orthanc : chiffrement du disque du poste ([`chiffrement.md`](chiffrement.md)) | ✅ H2 / ⚠️ H1 (à mettre en place sur le poste) |
+| Jetons partagés historiques | refusés dès que le registre de jetons est en place (sauf `SEC_JETON_HISTORIQUE=1` le temps d'une migration) | ✅ |
 | Mots de passe exposés dans un ancien commit | rotation Oracle non faite (`etat-avancement.md`) | ❌ (H1) |
 
 ### Réponse au droit d'accès
@@ -113,10 +112,9 @@ du Maroc n'est ajouté.
 
 | Priorité | Action | Pour qui |
 | --- | --- | --- |
-| 1 | Aligner la minimisation : ne plus exporter la rue (ni le téléphone, si non nécessaire) depuis H2, comme H1 | H2 + équipe |
-| 1 | Changer les mots de passe Oracle exposés ; vider `H1_API_TOKEN` / `H2_TOKEN` une fois le registre en place | H1, H1 + H2 |
+| 1 | Changer les mots de passe Oracle exposés (serveur Oracle, hors code) | H1 |
 | 2 | Notice d'information du patient (responsable, finalité, destinataires, droits, contact) | équipe |
 | 2 | Durée de conservation des journaux métier et procédure de purge tracée | équipe |
-| 3 | Chiffrement au repos (volume chiffré a minima) | H1, H2 |
+| 2 | Activer BitLocker sur les postes (Oracle, Orthanc) ; mettre `H2_CLE_CHIFFREMENT` et lancer `chiffrer_mongo.py` | H1, H2 |
 | 3 | Contrôle de l'âge au recueil du consentement (représentant légal pour un mineur) | sécurité |
 | — | Déclaration CNDP et analyse d'impact avant toute donnée réelle | établissements |

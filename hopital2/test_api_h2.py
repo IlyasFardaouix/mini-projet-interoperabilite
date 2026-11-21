@@ -22,18 +22,28 @@ REFS = json_util.loads(open(os.path.join(os.path.dirname(__file__), "data", "ref
 JETON = "secret-test"
 
 
+CLE_TEST = "v1:" + "A" * 43                  # 32 octets nuls en base64url : tests seulement
+
+
 def _fabriquer_store(kind):
     if kind == "memoire":
         return stores.StoreMemoire(copy.deepcopy(DOCS), REFS)
     import mongomock
-    s = stores.StoreMongo(client=mongomock.MongoClient(), nom_base="hopital2")
-    s.col.insert_many(copy.deepcopy(DOCS))
+    if kind == "mongo_chiffre":                  # dossiers chiffrés au repos (AES-256-GCM)
+        from securite.chiffrement import Chiffreur
+        s = stores.StoreMongoChiffre(client=mongomock.MongoClient(), nom_base="hopital2",
+                                     chiffreur=Chiffreur.depuis_texte(CLE_TEST))
+        for d in copy.deepcopy(DOCS):
+            s.remplacer(d)
+    else:
+        s = stores.StoreMongo(client=mongomock.MongoClient(), nom_base="hopital2")
+        s.col.insert_many(copy.deepcopy(DOCS))
     for nom, docs in REFS.items():
         s.db[nom].insert_many(copy.deepcopy(docs))
     return s
 
 
-@pytest.fixture(params=["memoire", "mongo"])
+@pytest.fixture(params=["memoire", "mongo", "mongo_chiffre"])
 def api(request, monkeypatch):
     """Client HTTP authentifié, sur chaque type de base (mémoire, MongoDB simulé)."""
     monkeypatch.setenv("H2_TOKEN", JETON)

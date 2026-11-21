@@ -183,11 +183,21 @@ transfert à l'étranger, droit d'accès (route réservée au DPO sur les deux A
 Écarts : minimisation (H2 exporte la rue), droit à l'information, conservation des journaux métier, chiffrement au
 repos, formalités CNDP.
 
+### Chiffrement au repos et durcissement
+
+- Dossiers MongoDB et file d'envoi de H2 chiffrés (AES-256-GCM, clé hors base,
+  index aveugles pour les recherches), migration `chiffrer_mongo.py` et rotation
+  de clé. Détail : [`securite/chiffrement.md`](securite/chiffrement.md).
+- Jetons partagés `H1_API_TOKEN` / `H2_TOKEN` refusés dès que le registre est en place.
+- Minimisation : l'export de H2 n'envoie plus la rue ni la personne à prévenir,
+  comme H1.
+
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
-| Aligner la minimisation : H2 exporte l'adresse complète (rue) et le téléphone, H1 non. Voir la grille 09-08. | H2 + équipe |
+| Activer le chiffrement du disque (BitLocker) sur les postes : Oracle et Orthanc n'ont pas de chiffrement applicatif. | H1, H2 |
+| Renseigner `H2_CLE_CHIFFREMENT`, lancer `chiffrer_mongo.py`, sauvegarder la clé hors du poste. | H2 |
 | Démarrer Orthanc (`docker compose up -d orthanc`) et vérifier la version de l'image ; charger les images avec `charger_dicom.py`. Le code n'a été testé qu'avec un faux serveur DICOMweb. | H2 |
 | Lancer un Orthanc local pour le CHU (port 8043) et planifier `recuperer_imagerie.py` après les retours. | H1 |
 | Sur chaque poste : relancer `generer_jetons.py --forcer` ou ajouter `SEC_SESSION_SECRET` au `.env`, puis créer les comptes du personnel avec `gerer_utilisateurs.py`. | H1 et H2 |

@@ -36,6 +36,8 @@ Le reste de ce document liste les variables à ajouter aux deux `.env`.
 | `SEC_UTILISATEURS` | `securite/comptes/utilisateurs-<service>.json` | Fichier des comptes du personnel (hors Git). |
 | `SEC_SESSION_DUREE` | `900` | Durée du jeton d'accès d'une session, en secondes. |
 | `SEC_SESSION_RENOUVELLEMENT` | `28800` | Durée du jeton de renouvellement, en secondes. |
+| `SEC_JETON_HISTORIQUE` | `0` | `1` : accepte encore `H1_API_TOKEN` / `H2_TOKEN` alors que le registre existe (migration seulement). |
+| `H2_CLE_CHIFFREMENT` | *(vide)* | Clé(s) AES-256 du chiffrement au repos de H2, `id:cle[,id:cle]`. Vide = stockage en clair (avertissement). Voir `chiffrement.md`. |
 | `SEC_JWT_ISS` | `interop-sante` | Émetteur attendu dans le `iss` du JWT. |
 | `SEC_JWT_AUD` | nom du service (`H1` / `H2`) | Destinataire attendu dans le `aud` du JWT. |
 | `SEC_ROTATION_JOURS` | `90` | Durée de validité par défaut des jetons générés. |

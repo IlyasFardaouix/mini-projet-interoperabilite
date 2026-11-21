@@ -251,6 +251,20 @@ def enrichir_annuaire(doc: dict, ref: Optional[dict]) -> dict:
     return doc
 
 
+def minimiser_patient(patient: dict) -> dict:
+    """Loi 09-08, art. 3 (données adéquates et non excessives) : même règle que H1.
+    L'autre établissement reçoit la ville et le pays, pas la rue ni le code postal,
+    et pas les coordonnées de la personne à prévenir (un tiers)."""
+    adresses = [{k: a[k] for k in ("use", "city", "country") if a.get(k)}
+                for a in patient.get("address") or []]
+    if any(adresses):
+        patient["address"] = [a for a in adresses if a]
+    else:
+        patient.pop("address", None)
+    patient.pop("contact", None)
+    return patient
+
+
 def construire_bundle(doc: dict, destinataire: str = ORIGINE_H1, inclure_audit: bool = False,
                       echange_id: Optional[str] = None, inclure_catalogue: bool = False,
                       referentiels: Optional[dict] = None) -> dict:
@@ -295,6 +309,7 @@ def construire_bundle(doc: dict, destinataire: str = ORIGINE_H1, inclure_audit: 
         res = e["resource"]
         if res["resourceType"] == "Patient":
             res["identifier"] = patient_fhir(d)["identifier"]
+            minimiser_patient(res)
             cin = d.get("national_id")
             # Patient : création conditionnelle (« crée si ce CIN n'existe pas »)
             e["request"] = ({"method": "POST", "url": "Patient",

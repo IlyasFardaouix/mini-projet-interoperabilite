@@ -99,6 +99,11 @@ class Configuration:
     utilisateurs: Optional[Path] = None      # comptes (hors depot Git)
     session_duree: int = 900                 # jeton d'acces : 15 min
     session_renouvellement: int = 28800      # jeton de renouvellement : 8 h (une garde)
+    # Jeton partage historique accepte MEME si le registre est en place.
+    # Faux par defaut : des qu'un registre existe, H1_API_TOKEN / H2_TOKEN sont
+    # refuses (ils donnent toutes les portees). SEC_JETON_HISTORIQUE=1 le temps
+    # d'une migration seulement.
+    accepter_jeton_historique: bool = False
 
     @property
     def jeton_historique(self) -> str:
@@ -152,4 +157,5 @@ def charger(service: str) -> Configuration:
                           or RACINE / "securite" / "comptes" / f"utilisateurs-{service.lower()}.json"),
         session_duree=_entier("SEC_SESSION_DUREE"),
         session_renouvellement=_entier("SEC_SESSION_RENOUVELLEMENT"),
+        accepter_jeton_historique=_booleen("SEC_JETON_HISTORIQUE", defaut=False),
     )

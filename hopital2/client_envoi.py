@@ -57,10 +57,27 @@ def client_h1(base_url: Optional[str] = None):
                            variable_jeton="H1_API_TOKEN")
 
 
-class Outbox:
-    """File d'attente des envois (SQLite)."""
+_PAR_DEFAUT = object()
 
-    def __init__(self, chemin: str = ":memory:"):
+
+class Outbox:
+    """File d'attente des envois (SQLite).
+
+    Le Bundle en attente est un dossier de santé complet : il est chiffré au repos
+    (AES-256-GCM, clé H2_CLE_CHIFFREMENT, lié à l'identifiant d'échange). Sans clé,
+    il reste en clair et un avertissement est affiché.
+    """
+
+    def __init__(self, chemin: str = ":memory:", chiffreur=_PAR_DEFAUT):
+        if chiffreur is _PAR_DEFAUT:
+            _racine = Path(__file__).resolve().parent.parent
+            if str(_racine) not in sys.path:
+                sys.path.insert(0, str(_racine))
+            from securite.chiffrement import Chiffreur
+            chiffreur = Chiffreur.depuis_env("H2_CLE_CHIFFREMENT")
+            if chiffreur is None and chemin != ":memory:":
+                print("[client_envoi] ATTENTION : H2_CLE_CHIFFREMENT absent, Bundles en clair sur le disque.")
+        self.chiffreur = chiffreur
         self.db = sqlite3.connect(chemin)
         self.db.row_factory = sqlite3.Row
         self.db.execute("""CREATE TABLE IF NOT EXISTS envois (
@@ -73,12 +90,26 @@ class Outbox:
         cur = self.db.execute(
             "INSERT INTO envois (patient_id, echange_id, bundle, statut, prochaine, cree_le, maj_le) "
             "VALUES (?, ?, ?, 'en_attente', ?, ?, ?)",
-            (patient_id, echange_id, bundle_json, maintenant, maintenant, maintenant))
+            (patient_id, echange_id, self._fermer(bundle_json, echange_id), maintenant, maintenant, maintenant))
         self.db.commit()
         return cur.lastrowid
 
-    def get(self, envoi_id: int) -> sqlite3.Row:
-        return self.db.execute("SELECT * FROM envois WHERE id = ?", (envoi_id,)).fetchone()
+    def _fermer(self, bundle_json: str, echange_id: str) -> str:
+        return self.chiffreur.chiffrer_texte(bundle_json, "envoi:" + echange_id) if self.chiffreur else bundle_json
+
+    def _ouvrir(self, contenu: str, echange_id: str) -> str:
+        if self.chiffreur and not contenu.lstrip().startswith("{"):
+            return self.chiffreur.dechiffrer_texte(contenu, "envoi:" + echange_id)
+        return contenu                                   # ancienne ligne en clair
+
+    def get(self, envoi_id: int) -> Optional[dict]:
+        """Ligne de la file, Bundle déchiffré."""
+        ligne = self.db.execute("SELECT * FROM envois WHERE id = ?", (envoi_id,)).fetchone()
+        if ligne is None:
+            return None
+        resultat = dict(ligne)
+        resultat["bundle"] = self._ouvrir(resultat["bundle"], resultat["echange_id"])
+        return resultat
 
     def a_reprendre(self, maintenant: float) -> list:
         return self.db.execute("SELECT * FROM envois WHERE statut = 'en_attente' AND prochaine <= ? ORDER BY id",

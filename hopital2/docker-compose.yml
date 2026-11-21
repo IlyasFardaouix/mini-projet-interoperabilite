@@ -16,6 +16,7 @@
 #   3) py ../securite/outils/generer_certificats.py --ip <adresse du poste>
 #   4) docker compose up -d mongo
 #   5) depuis hopital2/ : python charger_mongo.py hopital2_mongodb_v3.js
+#      puis python chiffrer_mongo.py (chiffre les dossiers charges en clair)
 #      Le chargeur lit MONGO_UTILISATEUR et MONGO_MOT_DE_PASSE dans .env.
 #      Sur une base déjà remplie, il faut --remplacer (efface les collections).
 #   6) docker compose up -d api        puis https://127.0.0.1:8002/docs
@@ -82,6 +83,8 @@ services:
       SEC_DEBIT_PAR_MINUTE: ${SEC_DEBIT_PAR_MINUTE:-120}
       # Jeton partage historique : laisser vide des que le registre est en place.
       H2_TOKEN: ${H2_TOKEN:-}
+      # Chiffrement au repos des dossiers (AES-256-GCM) : la cle reste hors de la base.
+      H2_CLE_CHIFFREMENT: ${H2_CLE_CHIFFREMENT:-}
       # --- imagerie ---
       H2_ORTHANC_URL: http://orthanc:8042/dicom-web
       H2_ORTHANC_UTILISATEUR: ${H2_ORTHANC_UTILISATEUR:-}

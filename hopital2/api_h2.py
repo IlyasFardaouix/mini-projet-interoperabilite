@@ -52,7 +52,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import adaptateur_h2_fhir as h2_vers_fhir
 import echange
 from echange import ErreurEchange
-from stores import DejaExistant, StoreIndisponible, StoreMemoire, StoreMongo
+from stores import DejaExistant, StoreIndisponible, StoreMemoire, StoreMongo, StoreMongoChiffre
 
 # ── couche de securite commune (dossier securite/ a la racine du depot) ──────
 # L'API se lance depuis son propre dossier (uvicorn api_h2:app) alors que le
@@ -87,8 +87,24 @@ def uri_mongo() -> Optional[str]:
 
 
 _URI_MONGO = uri_mongo()
-STORE = (StoreMongo(_URI_MONGO, os.getenv("MONGO_DB", "hopital2"))
-         if _URI_MONGO else StoreMemoire())
+
+
+def ouvrir_store():
+    """MongoDB chiffré si H2_CLE_CHIFFREMENT est défini (docs/securite/chiffrement.md)."""
+    if not _URI_MONGO:
+        return StoreMemoire()
+    if str(_RACINE) not in sys.path:
+        sys.path.insert(0, str(_RACINE))
+    from securite.chiffrement import Chiffreur
+    chiffreur = Chiffreur.depuis_env("H2_CLE_CHIFFREMENT")     # clé mal formée : arrêt (fail-closed)
+    base = os.getenv("MONGO_DB", "hopital2")
+    if chiffreur is None:
+        print("[H2] ATTENTION : H2_CLE_CHIFFREMENT absent, dossiers stockés EN CLAIR dans MongoDB.")
+        return StoreMongo(_URI_MONGO, base)
+    return StoreMongoChiffre(_URI_MONGO, base, chiffreur=chiffreur)
+
+
+STORE = ouvrir_store()
 
 app = FastAPI(title="API FHIR R5 – Hôpital 2 (Clinique Al Baçar)", version=VERSION)
 

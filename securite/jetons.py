@@ -301,6 +301,13 @@ class Verificateur:
             anomalies.append(
                 "seul le jeton partage est configure : tous les appelants ont tous les droits. "
                 "Creer un registre : py securite/outils/generer_jetons.py")
+        if self.conf.jeton_historique and self.registre.entrees():
+            anomalies.append(
+                ("jeton partage defini alors que le registre est en place : il est ACCEPTE "
+                 "(SEC_JETON_HISTORIQUE=1), a vider des la migration terminee.")
+                if self.conf.accepter_jeton_historique else
+                "jeton partage defini alors que le registre est en place : il est refuse. "
+                "Vider H1_API_TOKEN / H2_TOKEN.")
         if 0 < len(self.conf.jeton_historique) < 32:
             anomalies.append("le jeton partage fait moins de 32 caracteres : entropie insuffisante.")
         if self.conf.strict and not self.conf.tls_requis:
@@ -377,6 +384,12 @@ class Verificateur:
 
         attendu = self.conf.jeton_historique
         if attendu and hmac.compare_digest(jeton.encode("utf-8"), attendu.encode("utf-8")):
+            # Registre en place : le jeton partage (toutes les portees) n'est plus
+            # accepte, sauf migration explicite (SEC_JETON_HISTORIQUE=1).
+            if self.registre.entrees() and not self.conf.accepter_jeton_historique:
+                raise AccesRefuse(401, "login",
+                                  "Jeton partage desactive : utiliser un jeton du registre.",
+                                  "jeton_partage_desactive")
             return Appelant(client=CLIENT_HISTORIQUE,
                             portees=frozenset({self.conf.service.lower() + ":" + PORTEE_TOTALE}),
                             empreinte=court, source="historique",
