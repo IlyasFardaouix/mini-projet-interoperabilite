@@ -106,6 +106,8 @@ Set-Location hopital2
 | Préparer un dossier à envoyer | `GET /api/patients/{ipp}/bundle` | `GET /api/patients/{id}/bundle` |
 | Recevoir à blanc | `POST /api/retours/simulation` | `POST /api/retours/simulation` |
 | Recevoir | `POST /api/retours` | `POST /api/retours`, `POST /Bundle` |
+| Consentement : état et historique | `GET /api/patients/{ipp}/consentement` | `GET /api/patients/{id}/consentement` |
+| Consentement : recueil / retrait | `POST /api/patients/{ipp}/consentement[/retrait]` | `POST /api/patients/{id}/consentement[/retrait]` |
 | Documentation | `GET /docs` | `GET /docs` |
 
 En-têtes : `Authorization: Bearer <jeton>`, `Accept: application/fhir+json`,
@@ -123,7 +125,9 @@ conforme · `429` débit dépassé · `503` base indisponible ou authentificatio
 configurée. Toutes les erreurs sont renvoyées en `OperationOutcome`.
 
 Règles communes : consentement vérifié avant tout envoi et avant toute
-intégration ; anti-boucle (les données reçues d'un établissement ne lui sont
+intégration (statut, période de validité, finalité, destinataire ; catégories
+exclues par le patient retirées du Bundle ; voir
+[`docs/securite/consentement.md`](docs/securite/consentement.md)) ; anti-boucle (les données reçues d'un établissement ne lui sont
 jamais renvoyées) ; rejeu sans doublon par identifiants métier stables ;
 conflits signalés, jamais d'écrasement silencieux.
 

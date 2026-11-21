@@ -110,6 +110,8 @@ Une portée = un droit précis sur une route. Elle s'écrit
 | `patient.chercher` | `GET /Patient?identifier=...`                     |
 | `audit`            | option `inclure_audit=true` (journal du patient)  |
 | `annuaire`         | option `inclure_catalogue=true`                   |
+| `consentement.lire`  | `GET /api/patients/{id}/consentement`           |
+| `consentement.gerer` | `POST /api/patients/{id}/consentement[/retrait]` |
 
 `h1:*`, `h2:*` et `*` existent mais sont à éviter : un jeton volé donne alors
 tous les droits du service. Les jetons créés par
@@ -207,6 +209,7 @@ prototype, documentée dans la politique de sécurité.
 | `debit.py`                     | Limitation de débit (seau à jetons)                        |
 | `intergiciels.py`              | Intergiciel ASGI, `installer_securite`, `exiger_portee`    |
 | `client.py`                    | Client httpx durci pour appeler l'autre hôpital            |
+| `consentement.py`              | Règles du consentement (loi 09-08), `Consent` FHIR R5, filtrage du Bundle — voir [`docs/securite/consentement.md`](../docs/securite/consentement.md) |
 | `tls.py`                       | Autorité de certification interne et certificats ECDSA     |
 | `outils/generer_jetons.py`     | Génère les jetons et le registre                           |
 | `outils/generer_certificats.py`| Génère l'autorité et les certificats serveur               |

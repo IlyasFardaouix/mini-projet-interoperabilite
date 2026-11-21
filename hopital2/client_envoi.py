@@ -14,6 +14,8 @@ Ce n'est PAS une route ni une commande autonome : c'est un module destiné à
         autre 4xx (403, 409, 422…)  → « echec » : réessayer ne servirait à rien, une personne doit regarder
   6. reprendre() relance les envois en attente. Le Bundle et l'identifiant d'échange sont ceux du premier essai :
      si H1 avait en fait bien reçu l'envoi, le rejeu ne crée aucun doublon.
+     Avec le client H2 (reprendre(..., h2=...)), le consentement est revérifié avant chaque reprise :
+     retiré ou expiré → « annule » ; impossible à vérifier → l'envoi attend, rien ne part.
 """
 
 from __future__ import annotations
@@ -165,7 +167,40 @@ def envoyer_dossier(patient_id: str, h2, h1, outbox: Outbox, *, chemin_reception
     return tenter(outbox, envoi_id, h1, chemin=chemin_reception, maintenant=now)
 
 
-def reprendre(outbox: Outbox, h1, *, chemin: str = "/api/retours", maintenant: Optional[float] = None) -> list:
-    """Relance les envois en attente dont l'heure de reprise est passée."""
+def partage_toujours_autorise(h2, patient_id: str) -> tuple[Optional[bool], str]:
+    """(True | False | None, motif) d'après GET /api/patients/{id}/consentement.
+    None : la vérification n'a pas pu se faire (H2 injoignable, portée manquante…)."""
+    try:
+        rep = h2.get(f"/api/patients/{patient_id}/consentement")
+    except httpx.TransportError as exc:
+        return None, f"consentement non vérifiable (H2 injoignable : {exc.__class__.__name__})"
+    if rep.status_code != 200:
+        return None, f"consentement non vérifiable (HTTP {rep.status_code})"
+    etat = rep.json()
+    return bool(etat.get("partage_autorise")), str(etat.get("motif") or "")
+
+
+def reprendre(outbox: Outbox, h1, *, h2=None, chemin: str = "/api/retours",
+              maintenant: Optional[float] = None) -> list:
+    """Relance les envois en attente dont l'heure de reprise est passée.
+
+    Si `h2` est fourni, le consentement est revérifié avant chaque reprise (loi 09-08) :
+    un retrait survenu depuis la mise en file annule l'envoi.
+    """
     now = time.time() if maintenant is None else maintenant
-    return [tenter(outbox, l["id"], h1, chemin=chemin, maintenant=now) for l in outbox.a_reprendre(now)]
+    resultats = []
+    for ligne in outbox.a_reprendre(now):
+        if h2 is not None:
+            autorise, motif = partage_toujours_autorise(h2, ligne["patient_id"])
+            if autorise is False:
+                detail = f"Envoi annulé : {motif} (loi 09-08)."
+                outbox.maj(ligne["id"], now, statut="annule", derniere_erreur=detail)
+                resultats.append(_resultat(outbox, ligne["id"], "annule", None, detail))
+                continue
+            if autorise is None:                     # dans le doute, rien ne part
+                outbox.maj(ligne["id"], now, derniere_erreur=motif,
+                           prochaine=now + DELAIS_REPRISE[0])
+                resultats.append(_resultat(outbox, ligne["id"], "en_attente", None, motif))
+                continue
+        resultats.append(tenter(outbox, ligne["id"], h1, chemin=chemin, maintenant=now))
+    return resultats

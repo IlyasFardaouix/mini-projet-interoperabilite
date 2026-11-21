@@ -75,7 +75,7 @@ Points qui déterminent les choix de ce document :
 
 | Exigence de la loi 09-08 | Traduction dans le projet |
 |---|---|
-| Les données de santé sont des données sensibles : leur traitement suppose le consentement de la personne et une autorisation préalable de la CNDP | le consentement est vérifié des deux côtés, avant export et avant intégration ; aucun Bundle sans `Consent` actif n'est accepté (403) |
+| Les données de santé sont des données sensibles : leur traitement suppose le consentement de la personne et une autorisation préalable de la CNDP | le consentement est vérifié des deux côtés, avant export et avant intégration, par une règle commune (`securite/consentement.py`) : statut, période de validité, finalité « soins », destinataire ; aucun Bundle sans `Consent` valide n'est accepté (403) ; le patient peut exclure des catégories du partage et retirer son accord (droit d'opposition), chaque version étant conservée — voir [`consentement.md`](consentement.md) |
 | Finalité déterminée et proportionnalité | seules les données nécessaires à la continuité des soins sont échangées ; l'annuaire de l'établissement et le journal d'accès d'un patient ne sont pas inclus par défaut |
 | Confidentialité et sécurité du traitement | authentification de l'appelant, chiffrement du transport, droits par client, limitation de débit |
 | Traçabilité des accès | journal d'accès distinct du journal métier, conservé et vérifiable |

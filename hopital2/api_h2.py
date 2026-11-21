@@ -153,7 +153,8 @@ async def _inattendu(_, exc: Exception):
 # authentification (l'ancienne version passait en « mode développement » ouvert).
 #
 # Portées de ce service : h2:export, h2:simulation, h2:import, h2:patient.lire,
-# h2:patient.creer, h2:patient.chercher, h2:audit, h2:annuaire.
+# h2:patient.creer, h2:patient.chercher, h2:audit, h2:annuaire,
+# h2:consentement.lire, h2:consentement.gerer.
 
 # Hôpital d'où provient chaque client : c'est lui, et non un paramètre de
 # requête, qui détermine le destinataire d'un export. Sinon un appelant pourrait
@@ -281,6 +282,36 @@ async def recevoir(requete: Request, x_exchange_id: Optional[str] = Header(defau
 @app.post("/Bundle", dependencies=[Depends(exiger_portee("import"))])
 async def recevoir_bundle(requete: Request, x_exchange_id: Optional[str] = Header(default=None)):
     return await _recevoir(requete, x_exchange_id, commit=True)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Consentement au partage (loi 09-08) : état, recueil, retrait
+# ═════════════════════════════════════════════════════════════════════════════
+@app.get("/api/patients/{patient_id}/consentement",
+         dependencies=[Depends(exiger_portee("consentement.lire"))])
+def lire_consentement(patient_id: str):
+    """Consentement en vigueur, décision de partage (partage_autorise, motif) et historique."""
+    return reponse(echange.lire_consentement(STORE, patient_id), media="application/json")
+
+
+@app.post("/api/patients/{patient_id}/consentement")
+async def recueillir_consentement(patient_id: str, requete: Request,
+                                  appelant=Depends(exiger_portee("consentement.gerer"))):
+    """Nouvelle version du consentement. Corps : statut (actif|refuse), recueilli_par,
+    et facultativement debut, fin, destinataires, categories_exclues, signataire."""
+    corps = await lire_json(requete)
+    etat = echange.enregistrer_consentement(STORE, patient_id, corps, agent=appelant.client)
+    return reponse(etat, 201, media="application/json")
+
+
+@app.post("/api/patients/{patient_id}/consentement/retrait")
+async def retirer_consentement(patient_id: str, requete: Request,
+                               appelant=Depends(exiger_portee("consentement.gerer"))):
+    """Retrait (droit d'opposition). Corps : recueilli_par, motif (facultatif).
+    Les exports suivants sont refusés (403) ; client_envoi annule les envois en attente."""
+    corps = await lire_json(requete)
+    etat = echange.retirer_consentement(STORE, patient_id, corps, agent=appelant.client)
+    return reponse(etat, media="application/json")
 
 
 @app.get("/Patient/{patient_id}/$everything")

@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 import h1_to_fhir as aller
 import oracle_repo as repo
 from valider import valider_bundle
-from retour_api import verifier_bundle_retour
+from retour_api import extraire_consentement, verifier_bundle_retour
 
 # Couche de securite commune aux deux hopitaux (dossier securite/ a la racine du
 # depot). L'API se lance depuis son propre dossier, le package vit un niveau
@@ -59,7 +59,8 @@ app = FastAPI(
 
 # Authentification par portees, journal d'acces, en-tetes de securite,
 # limitation de debit, exigence de TLS. A appeler avant les routes.
-# Portees de ce service : h1:export, h1:simulation, h1:import, h1:audit.
+# Portees de ce service : h1:export, h1:simulation, h1:import, h1:audit,
+# h1:consentement.lire, h1:consentement.gerer.
 SECURITE = installer_securite(app, service="H1")
 
 
@@ -158,6 +159,11 @@ Route applicative de preparation : renvoie un rapport JSON de simulation,
 pas un transaction-response et ne conserve aucune modification du dossier.
 """
     bundle = await lire_json_securise(requete)
+    # Consent joint par la clinique : controle (403), puis retire avant l'import.
+    try:
+        bundle, alertes_consentement = extraire_consentement(bundle)
+    except aller.ConsentementRefuse as exc:
+        return erreur(403, "forbidden", str(exc))
     try:
         patient = verifier_bundle_retour(bundle)
     except (ValueError, TypeError, KeyError):
@@ -191,7 +197,7 @@ pas un transaction-response et ne conserve aucune modification du dossier.
             "modifications_conservees": False,
             "patient_ipp": ipp,
             "lignes_par_table": {table: len(resultat[table]) for table, _ in repo.ORDRE_TABLES},
-            "alertes": resultat["alertes"],
+            "alertes": alertes_consentement + resultat["alertes"],
             "ignores": resultat["ignores"],
         },
         headers={"Cache-Control": "no-store"},
@@ -217,6 +223,11 @@ async def recevoir_retour(requete: Request):
 metier met a jour les memes lignes par MERGE. Reponse : rapport JSON applicatif.
 """
     bundle = await lire_json_securise(requete)
+    # Consent joint par la clinique : controle (403), puis retire avant l'import.
+    try:
+        bundle, alertes_consentement = extraire_consentement(bundle)
+    except aller.ConsentementRefuse as exc:
+        return erreur(403, "forbidden", str(exc))
     try:
         patient = verifier_bundle_retour(bundle, definitif=True)
     except (ValueError, TypeError, KeyError):
@@ -243,8 +254,85 @@ metier met a jour les memes lignes par MERGE. Reponse : rapport JSON applicatif.
             "modifications_conservees": True,
             "patient_ipp": ipp,
             "lignes_par_table": {table: len(resultat[table]) for table, _ in repo.ORDRE_TABLES},
-            "alertes": resultat["alertes"],
+            "alertes": alertes_consentement + resultat["alertes"],
             "ignores": resultat["ignores"],
         },
         headers={"Cache-Control": "no-store"},
     )
+
+
+# --------------------------------------------------------------------------
+# Consentement au partage (loi 09-08) : etat, recueil, retrait
+# --------------------------------------------------------------------------
+REPONSES_CONSENTEMENT = {
+    401: {"description": "Jeton Bearer absent ou invalide"},
+    403: {"description": "Portee insuffisante"},
+    404: {"description": "Patient introuvable"},
+    503: {"description": "Acces Oracle indisponible"},
+}
+
+
+def _consentement(requete, ipp, action):
+    """Execute `action(conn)` et traduit les erreurs en OperationOutcome."""
+    try:
+        with repo.connexion() as conn:
+            etat = action(conn)
+    except LookupError:
+        return erreur(404, "not-found", "Patient introuvable dans H1.")
+    except aller.CONS.ConsentementInvalide as exc:
+        return erreur(422, "invalid", str(exc))
+    except repo.ConsentementSansObjet as exc:
+        return erreur(409, "conflict", str(exc))
+    except oracledb.DatabaseError:
+        return erreur(503, "transient", "Acces a Oracle indisponible ; consentement non modifie.")
+    tracer(requete, ressource=SECURITE.journal.pseudonyme(ipp))
+    return etat
+
+
+@app.get(
+    "/api/patients/{ipp}/consentement",
+    tags=["Consentement"],
+    dependencies=[Depends(exiger_portee("consentement.lire"))],
+    responses=REPONSES_CONSENTEMENT,
+)
+def lire_consentement(ipp: str, requete: Request):
+    """Consentement en vigueur, decision de partage (partage_autorise, motif) et historique."""
+    etat = _consentement(requete, ipp,
+                         lambda conn: repo.etat_consentement(ipp, repo.lire_consentements(conn, ipp)))
+    return etat if isinstance(etat, JSONResponse) else JSONResponse(etat, headers={"Cache-Control": "no-store"})
+
+
+@app.post(
+    "/api/patients/{ipp}/consentement",
+    tags=["Consentement"],
+    status_code=201,
+    responses={**REPONSES_CONSENTEMENT, 422: {"description": "Saisie incoherente"}},
+)
+async def recueillir_consentement(ipp: str, requete: Request,
+                                  appelant=Depends(exiger_portee("consentement.gerer"))):
+    """Nouvelle version du consentement (une ligne de plus, l'ancienne est conservee).
+Corps : statut (actif|refuse), recueilli_par ; facultatifs : debut, fin,
+destinataires (H2), categories_exclues (imagerie, comptes_rendus, allergies), signataire.
+"""
+    corps = await lire_json_securise(requete)
+    etat = _consentement(requete, ipp, lambda conn: repo.enregistrer_consentement(
+        conn, ipp, corps, agent=appelant.client))
+    return etat if isinstance(etat, JSONResponse) else JSONResponse(
+        etat, status_code=201, headers={"Cache-Control": "no-store"})
+
+
+@app.post(
+    "/api/patients/{ipp}/consentement/retrait",
+    tags=["Consentement"],
+    responses={**REPONSES_CONSENTEMENT, 409: {"description": "Aucun consentement actif"},
+               422: {"description": "Saisie incoherente"}},
+)
+async def retirer_consentement(ipp: str, requete: Request,
+                               appelant=Depends(exiger_portee("consentement.gerer"))):
+    """Retrait du consentement (droit d'opposition). Corps : recueilli_par, motif.
+Les exports suivants du dossier sont refuses (403).
+"""
+    corps = await lire_json_securise(requete)
+    etat = _consentement(requete, ipp, lambda conn: repo.retirer_consentement(
+        conn, ipp, corps, agent=appelant.client))
+    return etat if isinstance(etat, JSONResponse) else JSONResponse(etat, headers={"Cache-Control": "no-store"})

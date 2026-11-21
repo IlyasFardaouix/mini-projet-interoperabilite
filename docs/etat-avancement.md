@@ -127,10 +127,35 @@ Détail et justification : [`securite/politique-securite.md`](securite/politique
   privilège.
 - `.gitignore` racine, garde-fou de commit, auditeur automatique du dépôt.
 
+### Consentement (loi 09-08)
+
+Règles communes dans `securite/consentement.py`, branchées sur H1 et H2.
+Détail et contrat des routes : [`securite/consentement.md`](securite/consentement.md).
+
+- Consentement complet : période de validité, finalité, établissements
+  destinataires, catégories exclues du partage (imagerie, comptes rendus,
+  allergies), signataire, agent qui l'a recueilli.
+- Recueil, retrait (droit d'opposition) et historique sur les deux API, avec
+  les portées `consentement.lire` et `consentement.gerer` ; jetons
+  `h1-accueil` / `h2-accueil` sans accès aux dossiers.
+- Une version par changement, jamais d'écrasement ; trace dans
+  `journal_echange` (H1) et `_audit_log` (H2).
+- **Correction d'un blocage** : le Bundle de H1 ne contenait aucune ressource
+  `Consent` ; H2 aurait refusé (403) tout dossier venu du CHU. H1 joint
+  maintenant un `Consent` R5 complet.
+- Un envoi en file d'attente chez H2 est annulé si le consentement est retiré
+  avant la reprise.
+- Migration Oracle : `hopital1/schema_consentement_h1.sql`.
+
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
+| Exécuter `hopital1/schema_consentement_h1.sql` sur la base Oracle du CHU, puis tester les routes de consentement contre Oracle (les tests H1 simulent la base). | H1 |
+| Régénérer `hopital1/exemples/aller_youssef_S1.json` : l'exemple ne contient pas encore la ressource `Consent`. | H1 |
+| Un Bundle d'aller produit par H1 passe le contrôle de consentement de H2 mais est refusé en `422` : H2 ne résout pas les références `urn:uuid:` des séjours (« encounter introuvable »). Écart d'adaptateurs, indépendant du consentement. | H1 + H2 |
+| Les retours de H2 envoient leurs ressources en `PUT` alors que H1 n'accepte que des `POST` : à aligner (voir « Création du Patient » plus haut). | H1 + H2 |
+| Décider si un retrait de consentement doit être notifié à l'autre établissement. | H1 + H2 |
 | Changer dans Oracle les deux mots de passe exposés par un ancien commit : celui du compte d'administration et celui du compte applicatif `hopital1`. La purge de l'historique Git ne remplace pas cette rotation ; les anciens clones et caches peuvent conserver les valeurs. | H1 |
 | Vérifier sur chaque poste que `H1_API_TOKEN` et `H2_TOKEN` restent vides lorsque le registre de jetons est en place : ces anciens jetons partagés donnent toutes les portées du service. | H1 et H2 |
 

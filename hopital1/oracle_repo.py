@@ -4,10 +4,17 @@ reçues (retour). C'est le SEUL fichier qui parle à Oracle.
 """
 import json
 import os
+import uuid
+from datetime import datetime
 
 import config as C
 import fhir_to_h1 as RET
 import h1_to_fhir as ALL
+from h1_to_fhir import CONS   # regles de consentement communes (securite/consentement.py)
+
+# Plus recent d'abord ; a date egale, l'identifiant (numero de version) departage.
+SQL_CONSENTEMENTS = """SELECT * FROM consentement WHERE ipp = :v
+                       ORDER BY date_consentement DESC NULLS LAST, id_consentement DESC"""
 
 ORDRE_TABLES = [("patient", "ipp"), ("sejour", "id_sejour"), ("diagnostic", "id_diagnostic"),
                 ("mesure", "id_mesure"), ("etude_imagerie", "id_etude"),
@@ -40,8 +47,7 @@ def lire_dossier(conn, cin=None, ipp=None):
     if not pts:
         return None
     p = pts[0]
-    cur.execute("""SELECT * FROM consentement WHERE ipp = :v
-                   ORDER BY date_consentement DESC""", v=p["ipp"])
+    cur.execute(SQL_CONSENTEMENTS, v=p["ipp"])
     cons = _lignes(cur)
     cur.execute("SELECT * FROM sejour WHERE ipp = :v ORDER BY date_admission", v=p["ipp"])
     sejours = _lignes(cur)
@@ -72,14 +78,15 @@ def journaliser(conn, sens, ipp, statut, details, *, commit=True, strict=False):
         pass   # table pas encore créée : on n'empêche pas l'échange
 
 
-def exporter(conn, cin=None, ipp=None, adressage=True):
+def exporter(conn, cin=None, ipp=None, adressage=True, destinataire="H2"):
     """Renvoie (bundle, alertes, rejets). Lève ConsentementRefuse / DonneeInvalide."""
     dossier = lire_dossier(conn, cin=cin, ipp=ipp)
     if dossier is None:
         raise LookupError(f"Aucun patient H1 avec CIN={cin} / IPP={ipp}")
     ipp = dossier["patient"]["ipp"]
     try:
-        bundle, alertes, rejets = ALL.dossier_vers_bundle(dossier, adressage=adressage)
+        bundle, alertes, rejets = ALL.dossier_vers_bundle(dossier, adressage=adressage,
+                                                          destinataire=destinataire)
     except (ALL.ConsentementRefuse, ALL.DonneeInvalide) as e:
         statut = "REFUSE" if isinstance(e, ALL.ConsentementRefuse) else "REJETE"
         journaliser(conn, "ALLER", ipp, statut, [str(e)])
@@ -130,13 +137,91 @@ Ce controle ne cree aucun patient et ne rapproche jamais par les seuls traits.
         ipp = candidats[0][0]
         if ipp_chu and ipp_chu != ipp:
             raise IdentiteAmbigue("Le CIN et l'IPP du CHU ne designent pas le meme dossier.")
-        cur.execute(
-            """SELECT statut FROM consentement WHERE ipp = :v
-               ORDER BY date_consentement DESC NULLS LAST, id_consentement DESC""", v=ipp)
-        consentement = cur.fetchone()
-        if not consentement or consentement[0] != "ACTIF":
-            raise ALL.ConsentementRefuse("Consentement local absent ou refuse : retour interdit.")
+        cur.execute(SQL_CONSENTEMENTS, v=ipp)
+        lignes = _lignes(cur)
+        decision = CONS.evaluer(CONS.depuis_oracle(lignes[0] if lignes else None))
+        if not decision.autorise:
+            raise ALL.ConsentementRefuse(f"Consentement local : {decision.motif} : retour interdit (loi 09-08).")
     return ipp
+
+
+# --------------------------------------------------------------------------
+# CONSENTEMENT : etat, recueil, retrait (une ligne par version, jamais d'UPDATE)
+# --------------------------------------------------------------------------
+class ConsentementSansObjet(ValueError):
+    """Retrait demande alors qu'aucun consentement n'est actif (HTTP 409)."""
+
+
+def etat_consentement(ipp, lignes):
+    """Consentement en vigueur, decision de partage et historique (plus recent d'abord)."""
+    versions = [(l.get("id_consentement"), CONS.depuis_oracle(l)) for l in lignes]
+    actuel = versions[0][1] if versions else None
+    decision = CONS.evaluer(actuel)
+    return {
+        "patient_ipp": ipp,
+        "partage_autorise": decision.autorise,
+        "motif": decision.motif,
+        "actuel": dict(actuel.en_dict(), id=versions[0][0]) if actuel else None,
+        "historique": [dict(c.en_dict(), id=i) for i, c in versions[1:]],
+    }
+
+
+def lire_consentements(conn, ipp, *, verrouiller=False):
+    """Versions du consentement d'un patient. LookupError si le patient est inconnu."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT ipp FROM patient WHERE ipp = :v" + (" FOR UPDATE" if verrouiller else ""), v=ipp)
+        if cur.fetchone() is None:
+            raise LookupError("Patient inconnu au CHU.")
+        cur.execute(SQL_CONSENTEMENTS, v=ipp)
+        return _lignes(cur)
+
+
+def _nouvelle_version(conn, ipp, lignes, consentement, evenement, agent):
+    """INSERT de la nouvelle version + journal, dans la meme transaction."""
+    ident = f"CST-{ipp[3:]}-{len(lignes) + 1:03d}"
+    if len(ident) > 14:                                 # ID_CONSENTEMENT VARCHAR2(14)
+        ident = "C" + uuid.uuid4().hex[:13].upper()
+    valeurs = {"id_consentement": ident, "ipp": ipp, **CONS.vers_oracle(consentement),
+               "date_consentement": datetime.now()}      # date ET heure : ordre des versions
+    with conn.cursor() as cur:
+        cur.execute(f"INSERT INTO consentement ({', '.join(valeurs)}) "
+                    f"VALUES ({', '.join(':' + c for c in valeurs)})", valeurs)
+    journaliser(conn, "CONSENTEMENT", ipp, valeurs["statut"], {
+        "evenement": evenement, "id_consentement": ident, "agent": agent,
+        "recueilli_par": consentement.recueilli_par,
+        "destinataires": list(consentement.destinataires),
+        "categories_exclues": list(consentement.categories_exclues),
+    }, commit=False, strict=True)
+
+
+def enregistrer_consentement(conn, ipp, corps, *, agent):
+    """Recueil d'un consentement (actif ou refuse). ConsentementInvalide si saisie incoherente."""
+    try:
+        lignes = lire_consentements(conn, ipp, verrouiller=True)
+        nouveau = CONS.depuis_saisie(corps)
+        _nouvelle_version(conn, ipp, lignes, nouveau, "recueil", agent)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return etat_consentement(ipp, lire_consentements(conn, ipp))
+
+
+def retirer_consentement(conn, ipp, corps, *, agent):
+    """Retrait (droit d'opposition) : nouvelle version RETIRE. Les exports suivants sont refuses."""
+    corps = corps if isinstance(corps, dict) else {}
+    try:
+        lignes = lire_consentements(conn, ipp, verrouiller=True)
+        actuel = CONS.depuis_oracle(lignes[0]) if lignes else None
+        if actuel is None or actuel.statut != CONS.ACTIF:
+            raise ConsentementSansObjet("Aucun consentement actif a retirer pour ce patient.")
+        nouveau = CONS.retirer(actuel, corps.get("motif"), recueilli_par=corps.get("recueilli_par"))
+        _nouvelle_version(conn, ipp, lignes, nouveau, "retrait", agent)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return etat_consentement(ipp, lire_consentements(conn, ipp))
 
 
 def importer(conn, bundle, creer_patients=True, simulation=False, *, gerer_transaction=True, strict=False):

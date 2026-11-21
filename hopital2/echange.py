@@ -4,13 +4,15 @@ echange.py — règles d'échange H2 ⇄ H1 (aucune dépendance à FastAPI : tes
 Ce module est le « chef d'orchestre » entre la base H2 et les deux adaptateurs v3.3 :
 
   EXPORT  (H2 → H1)  document Mongo ─► adaptateur_h2_fhir ─► Bundle FHIR « transaction »
-                     • consentement vérifié avant l'export (ConsentError → 403)
+                     • consentement vérifié avant l'export (ConsentError → 403) : statut, période,
+                       finalité, destinataire ; catégories exclues par le patient retirées du Bundle
                      • ANTI-BOUCLE : ce qui est venu de H1 n'est jamais renvoyé à H1
                      • unités mises en UCUM (mmHg → mm[Hg]), un seul Patient, AuditEvent exclus
 
   IMPORT  (H1 → H2)  Bundle ─► adaptateur_fhir_h2 ─► fusion dans le dossier ─► base
                      • mode strict : champ obligatoire / unité / valeur impossible → 422
                      • consentement actif exigé (Bundle ET dossier local) → sinon 403
+  CONSENTEMENT       recueil, retrait (droit d'opposition) et historique : securite/consentement.py
                      • identité : CIN (urn:ma:cin), identifiant H2, IPP de H1 ; ambiguïté → 409
                      • REJEU SANS DOUBLON : un 2e envoi identique ne crée rien
                      • CONFLITS signalés (alertes), jamais d'écrasement silencieux
@@ -31,6 +33,15 @@ import adaptateur_fhir_h2 as fhir_vers_h2
 import adaptateur_h2_fhir as h2_vers_fhir
 from adaptateur_fhir_h2 import MappingError
 from adaptateur_h2_fhir import ConsentError, normalize_dates
+
+# Regles de consentement communes a H1 et H2 (dossier securite/ a la racine du depot).
+import sys
+from pathlib import Path
+
+_RACINE = str(Path(__file__).resolve().parent.parent)
+if _RACINE not in sys.path:
+    sys.path.insert(0, _RACINE)
+from securite import consentement as CONS  # noqa: E402
 
 SYSTEM_CIN = fhir_vers_h2.H2_SYSTEM_NATIONAL_ID                 # urn:ma:cin
 SYSTEM_ID_H2 = fhir_vers_h2.H2_SYSTEM_PATIENT_ID                # urn:clinique-al-bacar:patient
@@ -239,7 +250,13 @@ def enrichir_annuaire(doc: dict, ref: Optional[dict]) -> dict:
 def construire_bundle(doc: dict, destinataire: str = ORIGINE_H1, inclure_audit: bool = False,
                       echange_id: Optional[str] = None, inclure_catalogue: bool = False,
                       referentiels: Optional[dict] = None) -> dict:
-    """Bundle FHIR R5 « transaction » prêt à envoyer. Lève ConsentError si consentement non actif."""
+    """Bundle FHIR R5 « transaction » prêt à envoyer. Lève ConsentError si le consentement
+    n'autorise pas le partage vers ce destinataire (statut, période, finalité, destinataire)."""
+    try:
+        decision = CONS.verifier(CONS.depuis_mongo(doc.get("consent")), operation="Export",
+                                 destinataire=destinataire)
+    except CONS.ConsentementRefuse as exc:
+        raise ConsentError(str(exc)) from exc
     d = filtrer_pour(normaliser_observations(normaliser_unites(copy.deepcopy(doc))), destinataire)
     enrichir_annuaire(d, referentiels)
     if not d.get("_organizations"):          # dossier sans annuaire (ex. patient venu de H1) : la clinique reste référencée
@@ -248,6 +265,16 @@ def construire_bundle(doc: dict, destinataire: str = ORIGINE_H1, inclure_audit: 
         bundle = h2_vers_fhir.convert(d)
     except h2_vers_fhir.MissingPatientIdError as exc:   # l'adaptateur refuse « UNKNOWN » : on le traduit en erreur API
         raise ErreurEchange(500, "exception", f"Export refusé : {exc}") from exc
+
+    # Consent complet (période, destinataires, exclusions), produit par la règle commune.
+    for e in bundle["entry"]:
+        res = e["resource"]
+        if res["resourceType"] == "Consent":
+            e["resource"] = CONS.vers_fhir(CONS.depuis_mongo(d.get("consent")), id_ressource=res["id"],
+                                          patient_ref=res["subject"],
+                                          organisation_ref=(res.get("controller") or [None])[0])
+    # Catégories que le patient a exclues du partage (ex. imagerie).
+    bundle, _ = CONS.filtrer_bundle(bundle, decision.categories_exclues)
 
     entrees = [e for e in bundle["entry"]
                if inclure_audit or e["resource"]["resourceType"] != "AuditEvent"]
@@ -350,19 +377,28 @@ def verifier_structure(bundle: Any, rapport: Rapport) -> None:
 
 
 def convertir(bundle: dict, rapport: Rapport) -> dict:
-    """Bundle → document H2. Le consentement prime (403) sur les erreurs de contenu (422)."""
+    """Bundle → document H2. Le consentement est contrôlé avant le contenu : 403 prime sur 422."""
+    consents = [e["resource"] for e in bundle["entry"]
+                if (e.get("resource") or {}).get("resourceType") == "Consent"]
+    if not consents:
+        raise ErreurEchange(403, "forbidden", "Transfert refusé : aucun consentement dans le Bundle (loi 09-08).")
+    recu = CONS.depuis_fhir(consents[0])
+    try:
+        decision = CONS.verifier(recu, operation="Transfert", destinataire="H2")
+    except CONS.ConsentementRefuse as exc:
+        raise ErreurEchange(403, "forbidden", str(exc)) from exc
+    bundle, ignorees = CONS.filtrer_bundle(bundle, decision.categories_exclues)
+    if ignorees:
+        rapport.alerte("consentement-partiel",
+                       f"{ignorees} ressource(s) ignorée(s) : catégorie(s) exclue(s) du partage par le patient "
+                       f"({', '.join(sorted(decision.categories_exclues))}).")
+
     try:
         doc = fhir_vers_h2.bundle_to_h2_document(bundle, strict=False)
     except MappingError as exc:
         raise ErreurEchange(422, "invalid", str(exc))
     erreurs = [e for e in doc.pop("_mapping_errors", []) if not e.startswith("Aucun Consent")]
-
-    consent = doc.get("consent")
-    if not consent:
-        raise ErreurEchange(403, "forbidden", "Transfert refusé : aucun consentement dans le Bundle (loi 09-08).")
-    if consent.get("status") != "active":
-        raise ErreurEchange(403, "forbidden",
-                            f"Transfert refusé : consentement « {consent.get('status')} » (loi 09-08).")
+    doc["consent"] = CONS.vers_mongo(recu)              # période, destinataires et exclusions conservés
     if erreurs:
         raise ErreurEchange(422, "invalid", "; ".join(erreurs))
 
@@ -597,10 +633,11 @@ def importer(bundle: Any, store, *, commit: bool, exchange_id: Optional[str] = N
 
     if existant is not None:
         rapport.patient_id = existant["patient_id"]
-        if (existant.get("consent") or {}).get("status") != "active":
+        locale = CONS.evaluer(CONS.depuis_mongo(existant.get("consent")))
+        if not locale.autorise:
             raise ErreurEchange(403, "forbidden",
-                                f"Réception refusée : le consentement local du patient {existant['patient_id']} "
-                                f"est « {(existant.get('consent') or {}).get('status', 'absent')} » (loi 09-08).")
+                                f"Réception refusée : consentement local du patient {existant['patient_id']} : "
+                                f"{locale.motif} (loi 09-08).")
         if fourni and any(a.get("exchange_id") == fourni for a in existant.get("_audit_log", [])):
             rapport.deja_traite = True                 # même échange déjà reçu : rien à refaire
             return rapport.dict(), 200
@@ -621,6 +658,63 @@ def importer(bundle: Any, store, *, commit: bool, exchange_id: Optional[str] = N
     else:
         rapport.patient_id, rapport.patient_provisoire = store.next_id(), True
     return rapport.dict(), 201 if commit else 200
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3 bis. GESTION DU CONSENTEMENT (recueil, retrait, historique)
+# ═════════════════════════════════════════════════════════════════════════════
+def etat_consentement(doc: dict) -> dict:
+    """Consentement en vigueur, décision de partage et historique (plus récent d'abord)."""
+    actuel = CONS.depuis_mongo(doc.get("consent"))
+    decision = CONS.evaluer(actuel)
+    return {
+        "patient_id": doc["patient_id"],
+        "partage_autorise": decision.autorise,
+        "motif": decision.motif,
+        "actuel": actuel.en_dict() if actuel else None,
+        "historique": [CONS.depuis_mongo(h).en_dict()
+                       for h in reversed(doc.get("consent_history", [])) if h],
+    }
+
+
+def lire_consentement(store, identifiant: str) -> dict:
+    return etat_consentement(trouver_patient(store, identifiant))
+
+
+def _nouvelle_version(store, doc: dict, nouveau, evenement: str, agent: str) -> dict:
+    """La version précédente passe dans l'historique : rien n'est écrasé."""
+    if doc.get("consent"):
+        doc.setdefault("consent_history", []).append(doc["consent"])
+    doc["consent"] = CONS.vers_mongo(nouveau)          # recueilli ici : plus d'origine externe
+    ajouter_audit(doc, "update", evenement, agent=agent)
+    store.remplacer(doc)                               # consentement + historique + audit : un seul document
+    return etat_consentement(doc)
+
+
+def enregistrer_consentement(store, identifiant: str, corps: Any, *, agent: str) -> dict:
+    """Recueil d'un consentement (actif ou refusé). 422 si la saisie est incohérente."""
+    doc = trouver_patient(store, identifiant)
+    try:
+        nouveau = CONS.depuis_saisie(corps)
+    except CONS.ConsentementInvalide as exc:
+        raise ErreurEchange(422, "invalid", str(exc)) from exc
+    return _nouvelle_version(store, doc, nouveau, f"Consentement recueilli ({nouveau.statut})",
+                             f"{agent} / {nouveau.recueilli_par}")
+
+
+def retirer_consentement(store, identifiant: str, corps: Any, *, agent: str) -> dict:
+    """Retrait du consentement (droit d'opposition) : 409 s'il n'y a rien à retirer."""
+    doc = trouver_patient(store, identifiant)
+    corps = corps if isinstance(corps, dict) else {}
+    actuel = CONS.depuis_mongo(doc.get("consent"))
+    if actuel is None or actuel.statut != CONS.ACTIF:
+        raise ErreurEchange(409, "conflict", "Aucun consentement actif à retirer pour ce patient.")
+    try:
+        nouveau = CONS.retirer(actuel, corps.get("motif"), recueilli_par=corps.get("recueilli_par"))
+    except CONS.ConsentementInvalide as exc:
+        raise ErreurEchange(422, "invalid", str(exc)) from exc
+    return _nouvelle_version(store, doc, nouveau, "Consentement retiré",
+                             f"{agent} / {nouveau.recueilli_par}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

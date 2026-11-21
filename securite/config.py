@@ -27,6 +27,8 @@ PORTEES_CONNUES = {
     "patient.chercher",  # GET  /Patient?identifier=...
     "audit",             # lecture du journal d'acces (inclure_audit=true)
     "annuaire",          # annuaire complet de l'etablissement (inclure_catalogue=true)
+    "consentement.lire",   # GET  /api/patients/{id}/consentement : etat et historique
+    "consentement.gerer",  # POST /api/patients/{id}/consentement[/retrait] : recueil, retrait
 }
 
 # Variable d'environnement historique portant le jeton partage, par service.

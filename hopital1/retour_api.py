@@ -4,7 +4,38 @@ from datetime import date
 
 import config as C
 from fhir_to_h1 import Index
+from h1_to_fhir import CONS, ConsentementRefuse
 from valider import valider_bundle
+
+
+def extraire_consentement(bundle):
+    """Controle le Consent joint au retour, puis le retire du Bundle.
+
+Renvoie (bundle, alertes). Leve ConsentementRefuse (403) si le Consent recu
+n'autorise pas le partage vers le CHU. Le Consent n'est pas ecrit dans Oracle :
+le consentement local du CHU fait foi (controle dans oracle_repo). Les
+categories exclues par le patient sont retirees avant l'import. Un retour sans
+Consent reste accepte : seul le consentement local est alors controle.
+"""
+    if not isinstance(bundle, dict) or not isinstance(bundle.get("entry"), list):
+        return bundle, []        # la validation de structure renverra 422
+    consents = [e.get("resource") for e in bundle["entry"]
+                if isinstance(e, dict) and (e.get("resource") or {}).get("resourceType") == "Consent"]
+    if not consents:
+        return bundle, []
+    try:
+        decision = CONS.verifier(CONS.depuis_fhir(consents[0]), operation="Retour",
+                                 destinataire=C.CODE_ETABLISSEMENT)
+    except CONS.ConsentementRefuse as exc:
+        raise ConsentementRefuse(str(exc)) from exc
+    sans_consent = dict(bundle, entry=[e for e in bundle["entry"]
+                                       if (e.get("resource") or {}).get("resourceType") != "Consent"])
+    filtre, retirees = CONS.filtrer_bundle(sans_consent, decision.categories_exclues)
+    alertes = []
+    if retirees:
+        alertes.append(f"Consentement partiel : {retirees} ressource(s) ignoree(s), categorie(s) "
+                       f"exclue(s) du partage ({', '.join(sorted(decision.categories_exclues))}).")
+    return filtre, alertes
 
 
 def verifier_bundle_retour(bundle, *, definitif=False):

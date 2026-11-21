@@ -11,11 +11,19 @@ Ressources produites (fiche FHIR de l'équipe) :
   ServiceRequest (adressage CHU -> clinique, si adressage=True).
 """
 import re
+import sys
 import uuid
 from itertools import zip_longest
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 import config as C
+
+# Regles de consentement communes a H1 et H2 (dossier securite/ a la racine du depot).
+_RACINE = str(Path(__file__).resolve().parent.parent)
+if _RACINE not in sys.path:
+    sys.path.insert(0, _RACINE)
+from securite import consentement as CONS  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -405,16 +413,31 @@ def _entree(resource, url, cle_recherche):
                         "ifNoneExist": f"identifier={cle_recherche}"}}
 
 
-def dossier_vers_bundle(dossier, adressage=True, maintenant=None):
+def consentement_fhir(cons_oracle, consentement, m, url_pat, url_org, ipp):
+    """Ressource Consent R5 du Bundle : H2 refuse (403) tout Bundle qui n'en a pas."""
+    ident = (cons_oracle or {}).get("id_consentement") or f"CST-{ipp}"
+    res = CONS.vers_fhir(consentement, patient_ref={"reference": url_pat},
+                         organisation_ref={"reference": url_org}, meta=m, langue=C.LANGUE,
+                         identifiant={"system": C.SYS_CONSENTEMENT_CHU, "value": str(ident)})
+    return res, str(ident)
+
+
+def dossier_vers_bundle(dossier, adressage=True, maintenant=None, destinataire="H2"):
     """Renvoie (bundle, alertes, rejets).
-    Lève ConsentementRefuse (D1) ou DonneeInvalide (D8) : rien n'est envoyé."""
+    Lève ConsentementRefuse (D1) ou DonneeInvalide (D8) : rien n'est envoyé.
+
+    Le consentement est évalué par la règle commune (securite/consentement.py) :
+    statut, période de validité, finalité « soins » et destinataire autorisé. Les
+    catégories que le patient a exclues du partage sont retirées du Bundle."""
     p = dossier["patient"]
     alertes, rejets = [], []
 
-    cons = dossier.get("consentement")
-    if not cons or cons.get("statut") != "ACTIF":                     # cas D1
-        raise ConsentementRefuse(f"Patient {p['ipp']} : pas de consentement actif "
-                                 "au partage -> transfert interdit")
+    consentement = CONS.depuis_oracle(dossier.get("consentement"))       # cas D1
+    try:
+        decision = CONS.verifier(consentement, operation=f"Transfert du patient {p['ipp']}",
+                                 destinataire=destinataire)
+    except CONS.ConsentementRefuse as exc:
+        raise ConsentementRefuse(str(exc)) from exc
     maintenant = maintenant or datetime.now(timezone.utc).isoformat(timespec="seconds")
     m = meta(maintenant)
     entrees = []
@@ -451,6 +474,11 @@ def dossier_vers_bundle(dossier, adressage=True, maintenant=None):
     url_pat = uid(*cle)
     entrees.append(_entree(patient_fhir(p, m, url_org, dernier_medecin, alertes),
                            url_pat, f"{cle[0]}|{cle[1]}"))
+
+    cons_res, cons_id = consentement_fhir(dossier.get("consentement"), consentement, m,
+                                          url_pat, url_org, p["ipp"])
+    entrees.append(_entree(cons_res, uid(C.SYS_CONSENTEMENT_CHU, cons_id),
+                           f"{C.SYS_CONSENTEMENT_CHU}|{cons_id}"))
 
     if C.ENVOYER_GROUPE_SANGUIN and p.get("groupe_sanguin"):
         gs = groupe_sanguin_fhir(p, m, url_pat)
@@ -496,4 +524,8 @@ def dossier_vers_bundle(dossier, adressage=True, maintenant=None):
 
     bundle = {"resourceType": "Bundle", "type": "transaction",
               "timestamp": maintenant, "entry": entrees}
+    bundle, retirees = CONS.filtrer_bundle(bundle, decision.categories_exclues)
+    if retirees:
+        alertes.append(f"Consentement partiel : {retirees} ressource(s) exclue(s) du partage "
+                       f"({', '.join(sorted(decision.categories_exclues))}).")
     return bundle, alertes, rejets
