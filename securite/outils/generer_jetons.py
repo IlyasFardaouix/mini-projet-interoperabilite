@@ -43,18 +43,19 @@ LOCAUX = DOSSIER / "jetons_locaux"
 # cumule la lecture des dossiers des deux cotes.
 CLIENTS = [
     {"id": "h1-chu",
-     "portees": ["h2:simulation", "h2:import"],
-     "description": "API du CHU Al Massira : envoie ses Bundles a la clinique."},
+     "portees": ["h2:simulation", "h2:import", "h2:imagerie.lire"],
+     "description": "API du CHU Al Massira : envoie ses Bundles a la clinique, recupere l'imagerie."},
     {"id": "h2-clinique",
      "portees": ["h1:simulation", "h1:import"],
      "description": "API de la Clinique Al Bacar : envoie ses retours au CHU."},
     {"id": "h1-interne",
-     "portees": ["h1:export", "h1:simulation", "h1:import", "h1:consentement.lire"],
+     "portees": ["h1:export", "h1:simulation", "h1:import", "h1:consentement.lire",
+                 "h1:imagerie.lire"],
      "description": "Outils locaux du CHU (exporter.py, importer.py)."},
     {"id": "h2-interne",
      "portees": ["h2:export", "h2:simulation", "h2:import",
                  "h2:patient.lire", "h2:patient.chercher", "h2:patient.creer",
-                 "h2:consentement.lire"],
+                 "h2:consentement.lire", "h2:imagerie.lire"],
      "description": "Outils locaux de la clinique (client_envoi.py, demo.py)."},
     # Recueil et retrait du consentement : poste d'accueil, sans acces aux dossiers.
     {"id": "h1-accueil",

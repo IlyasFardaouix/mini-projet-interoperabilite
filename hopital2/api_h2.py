@@ -63,7 +63,9 @@ load_dotenv(Path(__file__).with_name(".env"), override=False)
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
 
-from securite import exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
+from securite import AccesRefuse, exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
+from imagerie.dicomweb import entrepot_depuis_env  # noqa: E402
+from imagerie.passerelle import routeur_dicomweb  # noqa: E402
 
 VERSION = "3.0"
 FHIR_JSON = "application/fhir+json"
@@ -154,7 +156,7 @@ async def _inattendu(_, exc: Exception):
 #
 # Portées de ce service : h2:export, h2:simulation, h2:import, h2:patient.lire,
 # h2:patient.creer, h2:patient.chercher, h2:audit, h2:annuaire,
-# h2:consentement.lire, h2:consentement.gerer.
+# h2:consentement.lire, h2:consentement.gerer, h2:imagerie.lire.
 
 # Hôpital d'où provient chaque client : c'est lui, et non un paramètre de
 # requête, qui détermine le destinataire d'un export. Sinon un appelant pourrait
@@ -312,6 +314,28 @@ async def retirer_consentement(patient_id: str, requete: Request,
     corps = await lire_json(requete)
     etat = echange.retirer_consentement(STORE, patient_id, corps, agent=appelant.client)
     return reponse(etat, media="application/json")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Imagerie DICOM : passerelle DICOMweb devant le PACS Orthanc (imagerie/passerelle.py)
+# GET /dicom-web/studies/{uid}[/metadata], portée h2:imagerie.lire
+# ═════════════════════════════════════════════════════════════════════════════
+PACS = entrepot_depuis_env("H2")        # H2_ORTHANC_URL, _UTILISATEUR, _MOT_DE_PASSE ; None = 503
+
+
+def autoriser_imagerie(appelant, study_uid: str) -> str:
+    """Règles de la clinique : voir echange.autoriser_imagerie. Renvoie le pseudonyme."""
+    externe = HOPITAL_DU_CLIENT.get(appelant.client)
+    try:
+        patient_id = echange.autoriser_imagerie(STORE, study_uid, destinataire=externe)
+    except ErreurEchange as exc:
+        raise AccesRefuse(exc.code, exc.type_fhir, exc.message, "imagerie_refusee") from exc
+    except StoreIndisponible as exc:
+        raise AccesRefuse(503, "transient", "Base indisponible.", "base_indisponible") from exc
+    return SECURITE.journal.pseudonyme(patient_id)
+
+
+app.include_router(routeur_dicomweb(entrepot=lambda: PACS, autoriser=autoriser_imagerie))
 
 
 @app.get("/Patient/{patient_id}/$everything")

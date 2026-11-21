@@ -49,7 +49,7 @@ from .jetons import AccesRefuse, Appelant, CompteurEchecs, creer_jwt, empreinte_
 ROLES = {
     # Soignant : consulte, envoie et recoit les dossiers ; lit le consentement.
     "medecin": ("export", "simulation", "import", "patient.lire", "patient.chercher",
-                "consentement.lire"),
+                "consentement.lire", "imagerie.lire"),
     # Accueil / admissions : identite du patient et recueil du consentement,
     # sans acces au contenu medical des dossiers.
     "accueil": ("patient.lire", "patient.chercher", "patient.creer",

@@ -28,6 +28,7 @@ MongoDB ──► API H2 ──HTTPS──► API H1 ──► Oracle
 | [`hopital1/`](hopital1/) | CHU : Oracle, adaptateurs FHIR, API d'export et de réception | [`hopital1/README.md`](hopital1/README.md) |
 | [`hopital2/`](hopital2/) | Clinique : MongoDB, adaptateurs FHIR, API et client d'envoi | [`hopital2/LISEZMOI.md`](hopital2/LISEZMOI.md) |
 | [`securite/`](securite/) | Authentification, HTTPS, audit et protections HTTP des deux API | [`securite/README.md`](securite/README.md) |
+| [`imagerie/`](imagerie/) | Images DICOM : PACS Orthanc, passerelle DICOMweb sécurisée, désidentification | [`docs/imagerie.md`](docs/imagerie.md) |
 | [`docs/`](docs/) | Architecture, avancement et procédures communes | [`docs/architecture-et-contributions.md`](docs/architecture-et-contributions.md) |
 
 Le [plan détaillé du dépôt](docs/architecture-et-contributions.md) indique les
@@ -108,6 +109,7 @@ Set-Location hopital2
 | Recevoir | `POST /api/retours` | `POST /api/retours`, `POST /Bundle` |
 | Consentement : état et historique | `GET /api/patients/{ipp}/consentement` | `GET /api/patients/{id}/consentement` |
 | Consentement : recueil / retrait | `POST /api/patients/{ipp}/consentement[/retrait]` | `POST /api/patients/{id}/consentement[/retrait]` |
+| Images DICOM (WADO-RS) | `GET /dicom-web/studies/{uid}[/metadata]` | `GET /dicom-web/studies/{uid}[/metadata]` |
 | Connexion du personnel | `POST /auth/connexion`, `/auth/renouvellement`, `/auth/deconnexion`, `GET /auth/moi` | idem |
 | Documentation | `GET /docs` | `GET /docs` |
 
@@ -162,6 +164,7 @@ privée, registre de jetons, journal d'accès, dossier patient réel.
 ```powershell
 # Depuis la racine du dépôt :
 .\.venv\Scripts\python.exe -m pytest securite/tests -q
+.\.venv\Scripts\python.exe -m pytest imagerie/tests -q
 Set-Location hopital2
 ..\.venv\Scripts\python.exe -m pytest -q
 Set-Location ../hopital1

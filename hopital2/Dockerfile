@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir -r hopital2/requirements.txt
 # Couche de securite commune aux deux hopitaux : jetons et portees, journal
 # d'acces, en-tetes de securite, TLS.
 COPY securite/ securite/
+# Imagerie DICOM commune (passerelle DICOMweb), sans ses tests.
+COPY imagerie/__init__.py imagerie/dicom.py imagerie/dicomweb.py imagerie/passerelle.py imagerie/
 
 # Seulement les fichiers dont le service a besoin. Les fichiers test_*.py,
 # demo.py et les generateurs de donnees n'ont rien a faire dans une image :

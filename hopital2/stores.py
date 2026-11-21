@@ -83,6 +83,14 @@ class StoreMemoire:
     def next_id(self) -> str:
         return _suivant(self.docs)
 
+    def find_by_study_uid(self, study_uid: str):
+        """Patient dont une visite contient l'étude d'imagerie (passerelle DICOMweb)."""
+        for d in self.docs.values():
+            if any(i.get("study_uid") == study_uid
+                   for v in d.get("visits", []) for i in v.get("imaging", [])):
+                return copy.deepcopy(d)
+        return None
+
     def creer(self, doc: dict, finaliser: Optional[Callable[[dict], None]] = None) -> dict:
         """Attribue P2-xxxx si patient_id est vide, appelle finaliser(doc) (ex. : audit), puis écrit."""
         attribue = not doc.get("patient_id")
@@ -164,6 +172,11 @@ class StoreMongo:
     @_garde
     def next_id(self) -> str:
         return _suivant(d["patient_id"] for d in self.col.find({}, {"patient_id": 1, "_id": 0}))
+
+    @_garde
+    def find_by_study_uid(self, study_uid: str):
+        """Patient dont une visite contient l'étude d'imagerie (passerelle DICOMweb)."""
+        return self.col.find_one({"visits.imaging.study_uid": study_uid}, {"_id": 0})
 
     @_garde
     def creer(self, doc: dict, finaliser: Optional[Callable[[dict], None]] = None) -> dict:

@@ -160,10 +160,27 @@ Comptes nominatifs pour l'interface, sur les deux API. Détail et contrat :
 - Le nom de la personne figure dans le journal d'accès et dans les journaux métier.
 - Comptes gérés en ligne de commande : `securite/outils/gerer_utilisateurs.py`.
 
+### Imagerie DICOM
+
+Images échangées en DICOMweb, avec la même sécurité que les dossiers.
+Détail : [`imagerie.md`](imagerie.md).
+
+- PACS Orthanc de la clinique dans `docker-compose.yml` : authentification,
+  boucle locale, serveur DIMSE désactivé.
+- Passerelle `/dicom-web` sur les deux API (WADO-RS, métadonnées), portée
+  `imagerie.lire`, consentement, catégorie « imagerie », anti-boucle, journal.
+- **Correction** : l'`Endpoint` DICOM des Bundles annonçait le PACS brut
+  (`http://localhost:8042`, sans authentification) ; il annonce maintenant la passerelle.
+- Images de démonstration cohérentes avec les 42 études de la clinique
+  (`charger_dicom.py`) ; récupération et contrôle d'intégrité par le CHU
+  (`recuperer_imagerie.py`) ; désidentification PS3.15 en option.
+
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
+| Démarrer Orthanc (`docker compose up -d orthanc`) et vérifier la version de l'image ; charger les images avec `charger_dicom.py`. Le code n'a été testé qu'avec un faux serveur DICOMweb. | H2 |
+| Lancer un Orthanc local pour le CHU (port 8043) et planifier `recuperer_imagerie.py` après les retours. | H1 |
 | Sur chaque poste : relancer `generer_jetons.py --forcer` ou ajouter `SEC_SESSION_SECRET` au `.env`, puis créer les comptes du personnel avec `gerer_utilisateurs.py`. | H1 et H2 |
 | Exécuter `hopital1/schema_consentement_h1.sql` sur la base Oracle du CHU, puis tester les routes de consentement contre Oracle (les tests H1 simulent la base). | H1 |
 | Régénérer `hopital1/exemples/aller_youssef_S1.json` : l'exemple ne contient pas encore la ressource `Consent`. | H1 |

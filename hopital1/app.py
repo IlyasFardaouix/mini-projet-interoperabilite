@@ -36,7 +36,9 @@ load_dotenv(Path(__file__).with_name(".env"), override=False)
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
 
-from securite import exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
+from securite import AccesRefuse, exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
+from imagerie.dicomweb import entrepot_depuis_env  # noqa: E402
+from imagerie.passerelle import routeur_dicomweb  # noqa: E402
 
 
 class FHIRResponse(JSONResponse):
@@ -60,7 +62,7 @@ app = FastAPI(
 # Authentification par portees, journal d'acces, en-tetes de securite,
 # limitation de debit, exigence de TLS. A appeler avant les routes.
 # Portees de ce service : h1:export, h1:simulation, h1:import, h1:audit,
-# h1:consentement.lire, h1:consentement.gerer.
+# h1:consentement.lire, h1:consentement.gerer, h1:imagerie.lire.
 SECURITE = installer_securite(app, service="H1")
 
 
@@ -336,3 +338,30 @@ Les exports suivants du dossier sont refuses (403).
     etat = _consentement(requete, ipp, lambda conn: repo.retirer_consentement(
         conn, ipp, corps, agent=appelant.client))
     return etat if isinstance(etat, JSONResponse) else JSONResponse(etat, headers={"Cache-Control": "no-store"})
+
+
+# --------------------------------------------------------------------------
+# Imagerie DICOM : passerelle DICOMweb devant le PACS du CHU (imagerie/passerelle.py)
+# GET /dicom-web/studies/{uid}[/metadata], portee h1:imagerie.lire.
+# Les images du CHU viennent de la clinique (recuperer_imagerie.py) : elles ne
+# lui sont jamais renvoyees (anti-boucle). Seul le personnel du CHU les consulte.
+# --------------------------------------------------------------------------
+PACS = entrepot_depuis_env("H1")        # H1_ORTHANC_URL, _UTILISATEUR, _MOT_DE_PASSE ; None = 503
+CLIENTS_EXTERNES = {"h2-clinique"}
+
+
+def autoriser_imagerie(appelant, study_uid):
+    if appelant.client in CLIENTS_EXTERNES:
+        raise AccesRefuse(403, "forbidden", "Anti-boucle : ces images proviennent de la clinique.",
+                          "imagerie_anti_boucle")
+    try:
+        with repo.connexion() as conn:
+            ipp = repo.patient_de_l_etude(conn, study_uid)
+    except oracledb.DatabaseError as exc:
+        raise AccesRefuse(503, "transient", "Acces a Oracle indisponible.", "oracle") from exc
+    if ipp is None:
+        raise AccesRefuse(404, "not-found", "Etude d'imagerie inconnue du CHU.", "etude_inconnue")
+    return SECURITE.journal.pseudonyme(ipp)
+
+
+app.include_router(routeur_dicomweb(entrepot=lambda: PACS, autoriser=autoriser_imagerie))

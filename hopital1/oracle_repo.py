@@ -145,6 +145,14 @@ Ce controle ne cree aucun patient et ne rapproche jamais par les seuls traits.
     return ipp
 
 
+def patient_de_l_etude(conn, study_uid):
+    """IPP du patient d'une etude d'imagerie recue, ou None."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT ipp FROM etude_imagerie WHERE study_uid = :v", v=study_uid)
+        ligne = cur.fetchone()
+    return ligne[0] if ligne else None
+
+
 # --------------------------------------------------------------------------
 # CONSENTEMENT : etat, recueil, retrait (une ligne par version, jamais d'UPDATE)
 # --------------------------------------------------------------------------

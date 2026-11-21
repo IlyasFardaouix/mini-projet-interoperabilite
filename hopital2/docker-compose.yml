@@ -19,6 +19,13 @@
 #      Le chargeur lit MONGO_UTILISATEUR et MONGO_MOT_DE_PASSE dans .env.
 #      Sur une base déjà remplie, il faut --remplacer (efface les collections).
 #   6) docker compose up -d api        puis https://127.0.0.1:8002/docs
+#   7) imagerie : docker compose up -d orthanc, puis depuis hopital2/ :
+#      python charger_dicom.py   (images de demonstration, voir docs/imagerie.md)
+#
+# PACS Orthanc : authentification obligatoire, port publie sur 127.0.0.1
+# seulement, serveur DICOM classique (DIMSE, port 4242) desactive. L'autre
+# hopital n'y accede jamais directement : il passe par la passerelle
+# /dicom-web de l'API (jeton, portee h2:imagerie.lire, consentement).
 services:
   mongo:
     image: mongo:7
@@ -29,6 +36,21 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_UTILISATEUR:?definir MONGO_UTILISATEUR dans .env}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_MOT_DE_PASSE:?definir MONGO_MOT_DE_PASSE dans .env}
     volumes: ["mongo_data:/data/db"]
+
+  orthanc:
+    # Image officielle avec le plugin DICOMweb. Version a verifier au premier
+    # lancement (docker compose pull orthanc) : elle n'a pas ete testee ici.
+    image: orthancteam/orthanc:24.12.1
+    restart: unless-stopped
+    ports: ["127.0.0.1:8042:8042"]
+    environment:
+      ORTHANC__NAME: "PACS Clinique Al Bacar"
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: '{"${H2_ORTHANC_UTILISATEUR:?definir H2_ORTHANC_UTILISATEUR dans .env}": "${H2_ORTHANC_MOT_DE_PASSE:?definir H2_ORTHANC_MOT_DE_PASSE dans .env}"}'
+      ORTHANC__DICOM_SERVER_ENABLED: "false"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"   # joignable par l'API dans le reseau Docker
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+    volumes: ["orthanc_data:/var/lib/orthanc/db"]
 
   api:
     # Le contexte est la racine du depot : l'image embarque aussi securite/.
@@ -60,6 +82,11 @@ services:
       SEC_DEBIT_PAR_MINUTE: ${SEC_DEBIT_PAR_MINUTE:-120}
       # Jeton partage historique : laisser vide des que le registre est en place.
       H2_TOKEN: ${H2_TOKEN:-}
+      # --- imagerie ---
+      H2_ORTHANC_URL: http://orthanc:8042/dicom-web
+      H2_ORTHANC_UTILISATEUR: ${H2_ORTHANC_UTILISATEUR:-}
+      H2_ORTHANC_MOT_DE_PASSE: ${H2_ORTHANC_MOT_DE_PASSE:-}
+      H2_DICOMWEB_URL: ${H2_DICOMWEB_URL:-https://127.0.0.1:8002/dicom-web}
     volumes:
       # Monter seulement les fichiers necessaires a H2. Le dossier entier
       # contiendrait aussi les cles privees de l'autorite et de H1.
@@ -94,8 +121,9 @@ services:
       --ssl-certfile /app/securite/certificats/h2.cert.pem
     # Sans TLS (poste de test isole UNIQUEMENT) : commenter le bloc command
     # ci-dessus et lancer avec SEC_MODE=local SEC_TLS_REQUIS=0 dans le .env.
-    depends_on: [mongo]
+    depends_on: [mongo, orthanc]
 
 volumes:
   mongo_data:
+  orthanc_data:
   journaux:

@@ -30,6 +30,7 @@ PORTEES_CONNUES = {
     "annuaire",          # annuaire complet de l'etablissement (inclure_catalogue=true)
     "consentement.lire",   # GET  /api/patients/{id}/consentement : etat et historique
     "consentement.gerer",  # POST /api/patients/{id}/consentement[/retrait] : recueil, retrait
+    "imagerie.lire",       # GET  /dicom-web/studies/{uid}[/metadata] : images DICOM (passerelle)
 }
 
 # Variable d'environnement historique portant le jeton partage, par service.

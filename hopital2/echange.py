@@ -48,6 +48,9 @@ SYSTEM_ID_H2 = fhir_vers_h2.H2_SYSTEM_PATIENT_ID                # urn:clinique-a
 SYSTEM_IPP_H1 = os.getenv("H1_IPP_SYSTEM", "https://chu-almassira.ma/ipp")
 SYSTEM_ECHANGE = "urn:clinique-al-bacar:echange"                # identifiant d'échange (Bundle.identifier)
 ORIGINE_H1 = "H1"
+# Adresse publique de la passerelle DICOMweb de la clinique, annoncée dans les
+# Endpoint DICOM des Bundles. Jamais l'adresse du PACS lui-même (local, sans TLS).
+URL_DICOMWEB = os.getenv("H2_DICOMWEB_URL", "https://127.0.0.1:8002/dicom-web")
 
 LISTES_VISITE = ("conditions", "observations", "imaging", "reports", "service_requests", "procedures")
 CATALOGUES = {                      # liste du document → (type FHIR, champ clé)
@@ -273,6 +276,13 @@ def construire_bundle(doc: dict, destinataire: str = ORIGINE_H1, inclure_audit: 
             e["resource"] = CONS.vers_fhir(CONS.depuis_mongo(d.get("consent")), id_ressource=res["id"],
                                           patient_ref=res["subject"],
                                           organisation_ref=(res.get("controller") or [None])[0])
+    # Images : l'autre hôpital passe par la passerelle sécurisée, pas par le PACS.
+    for e in bundle["entry"]:
+        res = e["resource"]
+        if res["resourceType"] == "Endpoint" and any(
+                "dicom" in (c.get("code") or "")
+                for cc in res.get("connectionType") or [] for c in cc.get("coding") or []):
+            res["address"] = URL_DICOMWEB
     # Catégories que le patient a exclues du partage (ex. imagerie).
     bundle, _ = CONS.filtrer_bundle(bundle, decision.categories_exclues)
 
@@ -715,6 +725,37 @@ def retirer_consentement(store, identifiant: str, corps: Any, *, agent: str) -> 
         raise ErreurEchange(422, "invalid", str(exc)) from exc
     return _nouvelle_version(store, doc, nouveau, "Consentement retiré",
                              f"{agent} / {nouveau.recueilli_par}")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3 ter. IMAGERIE : qui peut lire une étude DICOM (passerelle /dicom-web)
+# ═════════════════════════════════════════════════════════════════════════════
+def autoriser_imagerie(store, study_uid: str, *, destinataire: Optional[str]) -> str:
+    """Identifiant H2 du patient de l'étude si la lecture est permise.
+
+    `destinataire` : établissement qui appelle (ex. « H1 »), None pour le personnel
+    de la clinique. Pour un autre établissement : consentement valide vers lui,
+    imagerie non exclue par le patient, et jamais une étude qu'il nous a lui-même
+    transmise (anti-boucle).
+    """
+    doc = store.find_by_study_uid(study_uid)
+    if doc is None:
+        raise ErreurEchange(404, "not-found", "Étude d'imagerie inconnue de H2.")
+    if destinataire:
+        try:
+            decision = CONS.verifier(CONS.depuis_mongo(doc.get("consent")),
+                                     operation="Partage de l'imagerie", destinataire=destinataire)
+        except CONS.ConsentementRefuse as exc:
+            raise ErreurEchange(403, "forbidden", str(exc)) from exc
+        if "imagerie" in decision.categories_exclues:
+            raise ErreurEchange(403, "forbidden",
+                                "Partage refusé : le patient a exclu l'imagerie du partage (loi 09-08).")
+        etude = next(i for v in doc.get("visits", []) for i in v.get("imaging", [])
+                     if i.get("study_uid") == study_uid)
+        if _est_de(etude, destinataire):
+            raise ErreurEchange(403, "forbidden", "Anti-boucle : cette étude provient de "
+                                + destinataire + ".")
+    return doc["patient_id"]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
