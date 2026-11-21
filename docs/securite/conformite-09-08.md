@@ -22,7 +22,7 @@ Légende : ✅ respecté dans le prototype · ⚠️ partiel · ❌ absent · �
 | Finalité et proportionnalité (minimisation) | ⚠️ adresse complète exportée par H2 |
 | Durée de conservation | ⚠️ fixée pour le journal d'accès, pas pour les journaux métier |
 | Droit d'opposition | ✅ retrait du consentement |
-| Droit d'accès | ❌ pas de route d'extraction pour la personne |
+| Droit d'accès | ✅ route réservée au DPO, sur les deux établissements |
 | Droit de rectification | ⚠️ pas de route dédiée ni de trace de rectification |
 | Droit à l'information | ❌ pas de notice remise au patient |
 | Déclaration / autorisation CNDP | 🏛️ non faite (prototype sans données réelles) |
@@ -57,7 +57,7 @@ Voir [`consentement.md`](consentement.md).
 | Droit | Preuve | État |
 | --- | --- | --- |
 | Information au moment de la collecte (art. 5) | aucune notice : identité du responsable, finalité, destinataires, droits | ❌ |
-| Accès (art. 7) | l'historique du consentement est consultable ; aucune route ne rassemble pour la personne les données détenues et la liste des accès à son dossier | ❌ |
+| Accès (art. 7) | `GET /api/patients/{id}/droit-acces` (portée `droit_acces`, rôle `dpo`) : données détenues, données reçues de l'autre établissement, consentement et historique, journal des accès et des échanges, destinataires, finalité, durées de conservation, voies de recours ; la demande elle-même est tracée (voir plus bas) | ✅ |
 | Rectification (art. 8) | données modifiables en base ; pas de route dédiée, et la rectification n'est pas propagée à l'autre établissement | ⚠️ |
 | Opposition (art. 9) | retrait du consentement, effet immédiat sur les échanges suivants | ✅ |
 
@@ -74,6 +74,26 @@ Voir [`consentement.md`](consentement.md).
 | Confidentialité au repos | MongoDB et Oracle non chiffrés, fichiers `.env` en clair sur le poste | ❌ |
 | Jetons partagés historiques | `H1_API_TOKEN` et `H2_TOKEN` encore acceptés, avec toutes les portées | ⚠️ |
 | Mots de passe exposés dans un ancien commit | rotation Oracle non faite (`etat-avancement.md`) | ❌ (H1) |
+
+### Réponse au droit d'accès
+
+Mêmes rubriques sur H1 et H2 (`securite/droit_acces.py`) :
+
+| Rubrique | H2 (clinique) | H1 (CHU) |
+| --- | --- | --- |
+| `donnees` | dossier complet en FHIR R5 (`Bundle` collection) | lignes Oracle du dossier et données reçues de la clinique |
+| `origine_des_donnees` | éléments reçus d'un autre établissement (`_origin`) | séjours externes et lignes reçues |
+| `consentement` | version en vigueur et historique | idem |
+| `destinataires` | exports réussis, par établissement | envois `ALLER` réussis |
+| `historique_des_acces` | `_audit_log` du patient | `journal_echange` du patient |
+| `finalite`, `conservation`, `droits` | texte commun | texte commun |
+
+Le dossier n'est filtré ni par le consentement ni par l'anti-boucle : c'est le
+dossier de la personne elle-même. La demande est enregistrée dans le journal
+métier (H2 : `_audit_log` ; H1 : `journal_echange`, sens `DROIT_ACCES`, ajouté
+par `schema_consentement_h1.sql`) et dans le journal d'accès (pseudonyme).
+Seul le rôle `dpo` porte la portée `droit_acces` : le DPO vérifie l'identité du
+demandeur avant de remettre la réponse.
 
 ### Formalités — art. 12 et suivants
 
@@ -95,7 +115,6 @@ du Maroc n'est ajouté.
 | --- | --- | --- |
 | 1 | Aligner la minimisation : ne plus exporter la rue (ni le téléphone, si non nécessaire) depuis H2, comme H1 | H2 + équipe |
 | 1 | Changer les mots de passe Oracle exposés ; vider `H1_API_TOKEN` / `H2_TOKEN` une fois le registre en place | H1, H1 + H2 |
-| 2 | Route de droit d'accès : données détenues + historique des accès, pour la personne | sécurité |
 | 2 | Notice d'information du patient (responsable, finalité, destinataires, droits, contact) | équipe |
 | 2 | Durée de conservation des journaux métier et procédure de purge tracée | équipe |
 | 3 | Chiffrement au repos (volume chiffré a minima) | H1, H2 |

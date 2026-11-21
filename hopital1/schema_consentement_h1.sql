@@ -9,7 +9,7 @@
 --      categories exclues, signataire, agent qui a recueilli, retrait ;
 --   2. statut : 'RETIRE' accepte en plus de 'ACTIF' et 'REFUSE' ;
 --   3. table JOURNAL_ECHANGE : le sens 'CONSENTEMENT' trace chaque recueil
---      et chaque retrait.
+--      et chaque retrait, le sens 'DROIT_ACCES' chaque demande du patient.
 --
 -- Une ligne = une version. L'API n'emet jamais d'UPDATE ni de DELETE sur cette
 -- table : la version la plus recente (date_consentement, puis id) fait foi.
@@ -58,7 +58,7 @@ EXCEPTION
 END;
 /
 
--- 3. Journal : sens CONSENTEMENT -------------------------------------------
+-- 3. Journal : sens CONSENTEMENT et DROIT_ACCES -------------------------------------------
 ALTER TABLE journal_echange MODIFY (sens VARCHAR2(12));
 
 BEGIN
@@ -70,8 +70,15 @@ BEGIN
                AND uc.search_condition_vc NOT LIKE '%IS NOT NULL%') LOOP
     EXECUTE IMMEDIATE 'ALTER TABLE journal_echange DROP CONSTRAINT ' || c.constraint_name;
   END LOOP;
+  -- Rejouable : une ancienne version de ck_journal_sens est remplacee.
+  BEGIN
+    EXECUTE IMMEDIATE 'ALTER TABLE journal_echange DROP CONSTRAINT ck_journal_sens';
+  EXCEPTION
+    WHEN OTHERS THEN
+      IF SQLCODE != -2443 THEN RAISE; END IF;   -- ORA-02443 : contrainte absente
+  END;
   EXECUTE IMMEDIATE q'[ALTER TABLE journal_echange ADD CONSTRAINT ck_journal_sens
-                        CHECK (sens IN ('ALLER', 'RETOUR', 'CONSENTEMENT'))]';
+                        CHECK (sens IN ('ALLER', 'RETOUR', 'CONSENTEMENT', 'DROIT_ACCES'))]';
 EXCEPTION
   WHEN OTHERS THEN
     IF SQLCODE != -2264 THEN RAISE; END IF;

@@ -42,6 +42,7 @@ _RACINE = str(Path(__file__).resolve().parent.parent)
 if _RACINE not in sys.path:
     sys.path.insert(0, _RACINE)
 from securite import consentement as CONS  # noqa: E402
+from securite import droit_acces as DA  # noqa: E402
 
 SYSTEM_CIN = fhir_vers_h2.H2_SYSTEM_NATIONAL_ID                 # urn:ma:cin
 SYSTEM_ID_H2 = fhir_vers_h2.H2_SYSTEM_PATIENT_ID                # urn:clinique-al-bacar:patient
@@ -756,6 +757,57 @@ def autoriser_imagerie(store, study_uid: str, *, destinataire: Optional[str]) ->
             raise ErreurEchange(403, "forbidden", "Anti-boucle : cette étude provient de "
                                 + destinataire + ".")
     return doc["patient_id"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3 quater. DROIT D'ACCÈS DE LA PERSONNE (loi 09-08, art. 7)
+# ═════════════════════════════════════════════════════════════════════════════
+def _destinataire_de_l_audit(entree: dict) -> Optional[str]:
+    agent = str(entree.get("agent_who") or "")
+    if agent.startswith("Export vers "):
+        return agent.removeprefix("Export vers ").strip() or None
+    return None
+
+
+def _origines(valeur: Any, compte: Counter) -> None:
+    if isinstance(valeur, dict):
+        if valeur.get("_origin"):
+            compte[valeur["_origin"]] += 1
+        for enfant in valeur.values():
+            _origines(enfant, compte)
+    elif isinstance(valeur, list):
+        for enfant in valeur:
+            _origines(enfant, compte)
+
+
+def droit_acces(store, identifiant: str, *, agent: str) -> dict:
+    """Tout ce que la clinique détient sur la personne, sous forme intelligible :
+    dossier complet en FHIR R5 (sans filtre de consentement ni anti-boucle : c'est
+    SON dossier), consentement et historique, accès, destinataires, origine.
+    La demande est elle-même ajoutée au journal du patient."""
+    doc = trouver_patient(store, identifiant)
+    ajouter_audit(doc, "read", "Droit d'accès (loi 09-08, art. 7)", agent=agent)
+    store.remplacer(doc)
+
+    copie = normaliser_observations(normaliser_unites(copy.deepcopy(doc)))
+    try:
+        bundle = h2_vers_fhir.convert(copie, enforce_consent=False)
+    except h2_vers_fhir.MissingPatientIdError as exc:
+        raise ErreurEchange(500, "exception", f"Dossier illisible : {exc}") from exc
+    bundle["type"] = "collection"
+    bundle["entry"] = [{"fullUrl": e.get("fullUrl"), "resource": e["resource"]}
+                       for e in bundle["entry"] if e["resource"]["resourceType"] != "AuditEvent"]
+
+    acces = [DA.entree_acces(a.get("recorded_at"), a.get("action"), a.get("event_type"),
+                             agent=a.get("agent_who"), resultat=a.get("outcome_code"),
+                             echange_id=a.get("exchange_id"), destinataire=_destinataire_de_l_audit(a))
+             for a in doc.get("_audit_log", [])]
+    origines = Counter()
+    _origines(doc, origines)
+    origine = [{"etablissement": DA.ETABLISSEMENTS.get(o, o), "code": o, "elements": n}
+               for o, n in sorted(origines.items())]
+    return DA.reponse(service="H2", patient=doc["patient_id"], donnees={"dossier_fhir": bundle},
+                      consentement=etat_consentement(doc), acces=acces, origine_des_donnees=origine)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

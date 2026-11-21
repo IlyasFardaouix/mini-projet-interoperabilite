@@ -55,7 +55,7 @@ ROLES = {
     "accueil": ("patient.lire", "patient.chercher", "patient.creer",
                 "consentement.lire", "consentement.gerer"),
     # Delegue a la protection des donnees : journaux d'acces et consentements.
-    "dpo": ("audit", "consentement.lire"),
+    "dpo": ("audit", "consentement.lire", "droit_acces"),
 }
 
 LOGIN = re.compile(r"^[a-z0-9][a-z0-9._-]{2,31}$")

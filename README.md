@@ -109,6 +109,7 @@ Set-Location hopital2
 | Recevoir | `POST /api/retours` | `POST /api/retours`, `POST /Bundle` |
 | Consentement : état et historique | `GET /api/patients/{ipp}/consentement` | `GET /api/patients/{id}/consentement` |
 | Consentement : recueil / retrait | `POST /api/patients/{ipp}/consentement[/retrait]` | `POST /api/patients/{id}/consentement[/retrait]` |
+| Droit d'accès de la personne (DPO) | `GET /api/patients/{ipp}/droit-acces` | `GET /api/patients/{id}/droit-acces` |
 | Images DICOM (WADO-RS) | `GET /dicom-web/studies/{uid}[/metadata]` | `GET /dicom-web/studies/{uid}[/metadata]` |
 | Connexion du personnel | `POST /auth/connexion`, `/auth/renouvellement`, `/auth/deconnexion`, `GET /auth/moi` | idem |
 | Documentation | `GET /docs` | `GET /docs` |

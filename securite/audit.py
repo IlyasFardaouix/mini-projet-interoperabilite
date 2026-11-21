@@ -47,7 +47,8 @@ SEGMENTS_PUBLICS = {"api", "patients", "Patient", "bundle", "retours",
                     "simulation", "health", "metadata", "docs", "redoc",
                     "openapi.json", "$everything", "consentement", "retrait",
                     "auth", "connexion", "renouvellement", "deconnexion", "moi",
-                    "mot-de-passe", "dicom-web", "studies", "metadata"}
+                    "mot-de-passe", "dicom-web", "studies", "metadata",
+                    "droit-acces"}
 
 TAILLE_ROTATION = 5 * 1024 * 1024          # 5 Mo : au-dela, le fichier est archive
 

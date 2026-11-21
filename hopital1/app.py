@@ -62,7 +62,7 @@ app = FastAPI(
 # Authentification par portees, journal d'acces, en-tetes de securite,
 # limitation de debit, exigence de TLS. A appeler avant les routes.
 # Portees de ce service : h1:export, h1:simulation, h1:import, h1:audit,
-# h1:consentement.lire, h1:consentement.gerer, h1:imagerie.lire.
+# h1:consentement.lire, h1:consentement.gerer, h1:imagerie.lire, h1:droit_acces.
 SECURITE = installer_securite(app, service="H1")
 
 
@@ -339,6 +339,19 @@ Les exports suivants du dossier sont refuses (403).
         conn, ipp, corps, agent=appelant.client))
     return etat if isinstance(etat, JSONResponse) else JSONResponse(etat, headers={"Cache-Control": "no-store"})
 
+
+
+@app.get(
+    "/api/patients/{ipp}/droit-acces",
+    tags=["Consentement"],
+    responses=REPONSES_CONSENTEMENT,
+)
+def droit_acces(ipp: str, requete: Request, appelant=Depends(exiger_portee("droit_acces"))):
+    """Droit d'acces de la personne (loi 09-08, art. 7) : dossier, donnees recues,
+consentement, journal des echanges, destinataires. Reserve au DPO (h1:droit_acces). Trace.
+"""
+    etat = _consentement(requete, ipp, lambda conn: repo.droit_acces(conn, ipp, agent=appelant.client))
+    return etat if isinstance(etat, JSONResponse) else JSONResponse(etat, headers={"Cache-Control": "no-store"})
 
 # --------------------------------------------------------------------------
 # Imagerie DICOM : passerelle DICOMweb devant le PACS du CHU (imagerie/passerelle.py)

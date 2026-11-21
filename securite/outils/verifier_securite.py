@@ -532,6 +532,16 @@ def _valeur_n_est_pas_un_secret(valeur: str) -> bool:
     return est_systeme_fhir(valeur)
 
 
+_MOTIF_NOM_VARIABLE_ENV = re.compile(r"^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$")
+
+
+def _nomme_une_variable_d_environnement(nom: str, valeur: str) -> bool:
+    """`variable_jeton="H1_API_TOKEN"` : le NOM de la variable qui porte le jeton,
+    pas le jeton. Seulement pour un parametre `variable*` et une valeur en
+    MAJUSCULES_AVEC_SOULIGNES : toute autre valeur litterale reste signalee."""
+    return nom.lower().startswith("variable") and bool(_MOTIF_NOM_VARIABLE_ENV.match(valeur))
+
+
 def controle_secrets_en_dur(contexte) -> list:
     constats = []
     for relatif in contexte.fichiers_contenu:
@@ -549,6 +559,8 @@ def controle_secrets_en_dur(contexte) -> list:
                 if _valeur_est_un_exemple(valeur) or _valeur_n_est_pas_un_secret(valeur):
                     continue
                 nom_variable = trouve.group("nom")
+                if _nomme_une_variable_d_environnement(nom_variable, valeur):
+                    continue
                 longueur = len(valeur)
                 if longueur >= 16:
                     constats.append(Constat(

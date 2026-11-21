@@ -156,7 +156,7 @@ async def _inattendu(_, exc: Exception):
 #
 # Portées de ce service : h2:export, h2:simulation, h2:import, h2:patient.lire,
 # h2:patient.creer, h2:patient.chercher, h2:audit, h2:annuaire,
-# h2:consentement.lire, h2:consentement.gerer, h2:imagerie.lire.
+# h2:consentement.lire, h2:consentement.gerer, h2:imagerie.lire, h2:droit_acces.
 
 # Hôpital d'où provient chaque client : c'est lui, et non un paramètre de
 # requête, qui détermine le destinataire d'un export. Sinon un appelant pourrait
@@ -314,6 +314,15 @@ async def retirer_consentement(patient_id: str, requete: Request,
     corps = await lire_json(requete)
     etat = echange.retirer_consentement(STORE, patient_id, corps, agent=appelant.client)
     return reponse(etat, media="application/json")
+
+
+@app.get("/api/patients/{patient_id}/droit-acces")
+def droit_acces(patient_id: str, requete: Request, appelant=Depends(exiger_portee("droit_acces"))):
+    """Droit d'accès de la personne (loi 09-08, art. 7) : données détenues, consentement,
+    accès, destinataires, origine. Réservé au DPO (portée h2:droit_acces). Tracé."""
+    contenu = echange.droit_acces(STORE, patient_id, agent=appelant.client)
+    tracer(requete, ressource=SECURITE.journal.pseudonyme(contenu["patient"]))
+    return reponse(contenu, media="application/json", entetes={"Cache-Control": "no-store"})
 
 
 # ═════════════════════════════════════════════════════════════════════════════

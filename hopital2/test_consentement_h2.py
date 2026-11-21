@@ -206,3 +206,45 @@ def test_consentement_non_verifiable_rien_ne_part(api):
     res = reprendre(outbox, h1.client, h2=sans_droit, maintenant=10**6)
     assert res[0]["statut"] == "en_attente" and "non vérifiable" in res[0]["detail"]
     assert len(h1.definitifs()) == 1                            # toujours le seul essai initial
+
+
+# ── droit d'accès de la personne (loi 09-08, art. 7) ─────────────────────────
+def test_droit_acces_complet_et_trace(api):
+    api.get(f"/api/patients/{PATIENT}/bundle")                 # un export vers H1
+    r = api.get(f"/api/patients/{PATIENT}/droit-acces")
+    assert r.status_code == 200 and r.headers["cache-control"].startswith("no-store")
+    j = r.json()
+    assert j["patient"] == PATIENT and j["responsable_du_traitement"]["code"] == "H2"
+    Bundle.model_validate(j["donnees"]["dossier_fhir"])
+    assert "AuditEvent" not in types(j["donnees"]["dossier_fhir"])
+    assert j["destinataires"][0]["code"] == "H1" and j["destinataires"][0]["transmissions"] >= 1
+    assert j["consentement"]["partage_autorise"] is True
+    assert j["historique_des_acces"][-1]["evenement"].startswith("Droit d'accès")
+    assert api_h2.STORE.get(PATIENT)["_audit_log"][-1]["event_type"].startswith("Droit d'accès")
+
+
+def test_droit_acces_meme_si_le_partage_est_refuse(api):
+    """C'est le dossier de la personne : ni consentement ni anti-boucle ne le filtrent."""
+    api.post(URL + "/retrait", json={"recueilli_par": "Accueil"})
+    r = api.get(f"/api/patients/{PATIENT}/droit-acces")
+    assert r.status_code == 200 and "ImagingStudy" in types(r.json()["donnees"]["dossier_fhir"])
+
+
+def test_droit_acces_reserve_a_sa_portee(api, monkeypatch, tmp_path):
+    from securite.jetons import Verificateur, empreinte_complete
+
+    jeton = "jeton-export-" + "w" * 30
+    registre = tmp_path / "registre.json"
+    registre.write_text(json.dumps({"clients": [
+        {"id": "h2-interne", "empreinte": "sha256:" + empreinte_complete(jeton),
+         "portees": ["h2:export", "h2:consentement.lire"], "actif": True}]}), encoding="utf-8")
+    etat = api_h2.app.state.securite
+    monkeypatch.setattr(etat, "verificateur",
+                        Verificateur(replace(etat.conf, registre=registre, jwt_secret="", variable_jeton="")))
+    r = TestClient(api_h2.app, headers={"Authorization": f"Bearer {jeton}"}).get(
+        f"/api/patients/{PATIENT}/droit-acces")
+    assert r.status_code == 403 and "h2:droit_acces" in r.json()["issue"][0]["diagnostics"]
+
+
+def test_droit_acces_patient_inconnu(api):
+    assert api.get("/api/patients/P2-9999/droit-acces").status_code == 404

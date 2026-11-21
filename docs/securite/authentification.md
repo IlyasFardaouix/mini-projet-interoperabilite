@@ -26,7 +26,7 @@ Un rôle donne des portées existantes ; aucune route n'a été modifiée pour c
 | --- | --- | --- |
 | `medecin` | `export`, `simulation`, `import`, `patient.lire`, `patient.chercher`, `consentement.lire` | consulter, envoyer et recevoir les dossiers |
 | `accueil` | `patient.lire`, `patient.chercher`, `patient.creer`, `consentement.lire`, `consentement.gerer` | identité du patient et recueil du consentement, **sans** le contenu médical |
-| `dpo` | `audit`, `consentement.lire` | délégué à la protection des données |
+| `dpo` | `audit`, `consentement.lire`, `droit_acces` | délégué à la protection des données ; répond aux demandes de droit d'accès |
 
 Le rôle est relu à chaque requête : un changement de rôle ou une désactivation
 prend effet immédiatement, sans attendre l'expiration du jeton.

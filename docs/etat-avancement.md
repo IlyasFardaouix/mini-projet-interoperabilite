@@ -179,8 +179,8 @@ Détail : [`imagerie.md`](imagerie.md).
 
 Grille exigence par exigence : [`securite/conformite-09-08.md`](securite/conformite-09-08.md).
 Respectés : consentement, sécurité, traçabilité, opposition, absence de
-transfert à l'étranger. Écarts : minimisation (H2 exporte la rue), droits
-d'accès et d'information, conservation des journaux métier, chiffrement au
+transfert à l'étranger, droit d'accès (route réservée au DPO sur les deux API).
+Écarts : minimisation (H2 exporte la rue), droit à l'information, conservation des journaux métier, chiffrement au
 repos, formalités CNDP.
 
 ### Reste à faire

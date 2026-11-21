@@ -11,6 +11,7 @@ import config as C
 import fhir_to_h1 as RET
 import h1_to_fhir as ALL
 from h1_to_fhir import CONS   # regles de consentement communes (securite/consentement.py)
+from securite import droit_acces as DA  # noqa: E402  (racine ajoutee par h1_to_fhir)
 
 # Plus recent d'abord ; a date egale, l'identifiant (numero de version) departage.
 SQL_CONSENTEMENTS = """SELECT * FROM consentement WHERE ipp = :v
@@ -314,3 +315,51 @@ def recevoir_retour(conn, bundle, patient):
         conn.rollback()
         raise
     return ipp, res
+
+
+# --------------------------------------------------------------------------
+# DROIT D'ACCES DE LA PERSONNE (loi 09-08, art. 7)
+# --------------------------------------------------------------------------
+TABLES_RECUES = ("etude_imagerie", "compte_rendu", "resultat_ophtalmo")
+EVENEMENTS = {"ALLER": "Envoi du dossier a la clinique", "RETOUR": "Reception de donnees de la clinique",
+              "CONSENTEMENT": "Consentement", "DROIT_ACCES": "Droit d'acces (loi 09-08, art. 7)"}
+
+
+def _json(valeur):
+    """Lignes Oracle -> JSON (dates et nombres en texte lisible)."""
+    return json.loads(json.dumps(valeur, ensure_ascii=False, default=str))
+
+
+def droit_acces(conn, ipp, *, agent):
+    """Tout ce que le CHU detient sur la personne : dossier, donnees recues de la
+    clinique, consentement et historique, journal des echanges. La demande est
+    tracee (journal_echange, sens DROIT_ACCES) avant la reponse."""
+    dossier = lire_dossier(conn, ipp=ipp)
+    if dossier is None:
+        raise LookupError("Patient inconnu au CHU.")
+    ipp = dossier["patient"]["ipp"]
+    journaliser(conn, "DROIT_ACCES", ipp, "OK", {"agent": agent}, strict=True)
+
+    recues = {}
+    with conn.cursor() as cur:
+        for table in TABLES_RECUES:
+            cur.execute(f"SELECT * FROM {table} WHERE ipp = :v", v=ipp)
+            recues[table] = _lignes(cur)
+        cur.execute("SELECT date_echange, sens, statut, details FROM journal_echange "
+                    "WHERE ipp = :v ORDER BY date_echange", v=ipp)
+        journal = _lignes(cur)
+
+    acces = [DA.entree_acces(j.get("date_echange"), j.get("sens"),
+                             EVENEMENTS.get(j.get("sens"), j.get("sens")), resultat=j.get("statut"),
+                             destinataire="H2" if j.get("sens") == "ALLER" else None)
+             for j in journal]
+    externes = sum(1 for s in dossier.get("sejours", [])
+                   if s.get("id_externe") or (s.get("etablissement") and s["etablissement"] != C.CHU["nom"]))
+    externes += sum(len(lignes) for lignes in recues.values())
+    origine = [{"etablissement": DA.ETABLISSEMENTS["H2"], "code": "H2", "elements": externes}] if externes else []
+    return _json(DA.reponse(
+        service="H1", patient=ipp,
+        donnees={"dossier": {k: v for k, v in dossier.items() if k != "consentement"},
+                 "donnees_recues_de_la_clinique": recues},
+        consentement=etat_consentement(ipp, lire_consentements(conn, ipp)),
+        acces=acces, origine_des_donnees=origine))
