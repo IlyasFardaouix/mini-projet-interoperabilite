@@ -145,6 +145,7 @@ répond `503` : il ne s'ouvre jamais.
 - [`SECURITY.md`](SECURITY.md) — périmètre et signalement
 - [`docs/securite/authentification.md`](docs/securite/authentification.md) — comptes du personnel, rôles et sessions (`/auth/...`)
 - [`docs/securite/consentement.md`](docs/securite/consentement.md) — consentement au partage (loi 09-08)
+- [`docs/securite/conformite-09-08.md`](docs/securite/conformite-09-08.md) — grille de conformité à la loi 09-08 et écarts restants
 - [`securite/README.md`](securite/README.md) — mode d'emploi de la couche
 - [`docs/securite/politique-securite.md`](docs/securite/politique-securite.md) — politique, menaces, matrice des droits
 - [`docs/securite/procedure-secrets.md`](docs/securite/procedure-secrets.md) — jetons et mots de passe

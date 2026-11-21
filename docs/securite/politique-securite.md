@@ -93,6 +93,8 @@ celles qu'exigerait un traitement réel.
 | Art. 32 | sécurité du traitement : chiffrement, pseudonymisation, intégrité, disponibilité, vérification régulière des mesures | TLS exigé, pseudonymisation du journal d'accès, chaînage du journal, limitation de débit, tests de la couche sécurité |
 | Art. 33 | notification d'une violation de données à l'autorité de contrôle | procédure de fuite de secret, étape 5 (voir `procedure-secrets.md`) |
 
+Vérification exigence par exigence et écarts restants : [`conformite-09-08.md`](conformite-09-08.md).
+
 La loi 09-08 et le RGPD poursuivent le même objectif ; la correspondance ci-dessus sert
 à justifier les mesures, pas à transposer une obligation européenne au Maroc.
 

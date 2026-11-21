@@ -175,10 +175,19 @@ Détail : [`imagerie.md`](imagerie.md).
   (`charger_dicom.py`) ; récupération et contrôle d'intégrité par le CHU
   (`recuperer_imagerie.py`) ; désidentification PS3.15 en option.
 
+### Conformité à la loi 09-08
+
+Grille exigence par exigence : [`securite/conformite-09-08.md`](securite/conformite-09-08.md).
+Respectés : consentement, sécurité, traçabilité, opposition, absence de
+transfert à l'étranger. Écarts : minimisation (H2 exporte la rue), droits
+d'accès et d'information, conservation des journaux métier, chiffrement au
+repos, formalités CNDP.
+
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
+| Aligner la minimisation : H2 exporte l'adresse complète (rue) et le téléphone, H1 non. Voir la grille 09-08. | H2 + équipe |
 | Démarrer Orthanc (`docker compose up -d orthanc`) et vérifier la version de l'image ; charger les images avec `charger_dicom.py`. Le code n'a été testé qu'avec un faux serveur DICOMweb. | H2 |
 | Lancer un Orthanc local pour le CHU (port 8043) et planifier `recuperer_imagerie.py` après les retours. | H1 |
 | Sur chaque poste : relancer `generer_jetons.py --forcer` ou ajouter `SEC_SESSION_SECRET` au `.env`, puis créer les comptes du personnel avec `gerer_utilisateurs.py`. | H1 et H2 |
