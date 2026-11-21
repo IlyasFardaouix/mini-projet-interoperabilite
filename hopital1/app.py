@@ -14,12 +14,11 @@ docs/securite/politique-securite.md. /health reste libre.
 La route d'export est une route applicative, pas une transaction FHIR de reception.
 """
 
-from typing import Any
-
 import oracledb
-from fastapi import Body, Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 
 import h1_to_fhir as aller
 import oracle_repo as repo
@@ -33,14 +32,23 @@ import sys
 from pathlib import Path
 
 _RACINE = Path(__file__).resolve().parent.parent
+load_dotenv(Path(__file__).with_name(".env"), override=False)
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
 
-from securite import exiger_portee, installer_securite, tracer  # noqa: E402
+from securite import exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
 
 
 class FHIRResponse(JSONResponse):
     media_type = "application/fhir+json"
+
+
+CORPS_BUNDLE_OPENAPI = {
+    "requestBody": {
+        "required": True,
+        "content": {"application/fhir+json": {"schema": {"type": "object"}}},
+    }
+}
 
 
 app = FastAPI(
@@ -133,6 +141,7 @@ X-H1-Rejection-Count et X-H1-Alert-Count et detailles dans le journal Oracle.
     "/api/retours/simulation",
     tags=["Retour clinique"],
     dependencies=[Depends(exiger_portee("simulation"))],
+    openapi_extra=CORPS_BUNDLE_OPENAPI,
     responses={
         401: {"description": "Jeton Bearer absent ou invalide"},
         403: {"description": "Consentement local absent ou refuse"},
@@ -142,12 +151,13 @@ X-H1-Rejection-Count et X-H1-Alert-Count et detailles dans le journal Oracle.
         503: {"description": "Acces Oracle indisponible"},
     },
 )
-def simuler_retour(requete: Request, bundle: Any = Body(media_type="application/fhir+json")):
+async def simuler_retour(requete: Request):
     """Essaie l'import d'un retour puis annule les ecritures.
 
 Route applicative de preparation : renvoie un rapport JSON de simulation,
 pas un transaction-response et ne conserve aucune modification du dossier.
 """
+    bundle = await lire_json_securise(requete)
     try:
         patient = verifier_bundle_retour(bundle)
     except (ValueError, TypeError, KeyError):
@@ -192,6 +202,7 @@ pas un transaction-response et ne conserve aucune modification du dossier.
     "/api/retours",
     tags=["Retour clinique"],
     dependencies=[Depends(exiger_portee("import"))],
+    openapi_extra=CORPS_BUNDLE_OPENAPI,
     responses={
         401: {"description": "Jeton absent ou invalide"},
         403: {"description": "Consentement local absent ou refuse"},
@@ -201,10 +212,11 @@ pas un transaction-response et ne conserve aucune modification du dossier.
         503: {"description": "Import Oracle non confirme"},
     },
 )
-def recevoir_retour(requete: Request, bundle: Any = Body(media_type="application/fhir+json")):
+async def recevoir_retour(requete: Request):
     """Import definitif et journal atomiques. Rejouer les memes identifiants
 metier met a jour les memes lignes par MERGE. Reponse : rapport JSON applicatif.
 """
+    bundle = await lire_json_securise(requete)
     try:
         patient = verifier_bundle_retour(bundle, definitif=True)
     except (ValueError, TypeError, KeyError):

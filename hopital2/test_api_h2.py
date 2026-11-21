@@ -1,6 +1,7 @@
 """Tests de l'API H2 v3. Lancer :  python -m pytest -q   (depuis ce dossier)"""
 import copy
 import json
+from dataclasses import replace
 
 from bson import json_util
 import os
@@ -70,6 +71,15 @@ def test_health_et_metadata_sans_jeton(monkeypatch):
     assert m.json()["fhirVersion"] == "5.0.0"
 
 
+def test_uri_mongo_encode_les_identifiants(monkeypatch):
+    monkeypatch.delenv("MONGO_URI", raising=False)
+    monkeypatch.setenv("MONGO_UTILISATEUR", "compte@h2")
+    monkeypatch.setenv("MONGO_MOT_DE_PASSE", "exemple:/?")
+    monkeypatch.setenv("MONGO_HOTE", "mongo")
+    assert api_h2.uri_mongo() == (
+        "mongodb://compte%40h2:exemple%3A%2F%3F@mongo:27017/?authSource=admin")
+
+
 @pytest.mark.parametrize("methode,chemin", [
     ("get", "/api/patients/P2-0051/bundle"), ("post", "/api/retours"), ("post", "/api/retours/simulation"),
     ("post", "/Bundle"), ("get", "/Patient/P2-0051"), ("get", "/Patient"), ("post", "/Patient"),
@@ -80,14 +90,15 @@ def test_routes_protegees_exigent_le_jeton(monkeypatch, methode, chemin):
     c = TestClient(api_h2.app)
     r = getattr(c, methode)(chemin)
     assert r.status_code == 401
-    assert r.json()["resourceType"] == "OperationOutcome" and r.headers["www-authenticate"] == "Bearer"
+    assert r.json()["resourceType"] == "OperationOutcome"
+    assert r.headers["www-authenticate"] == 'Bearer realm="H2"'
     r = getattr(c, methode)(chemin, headers={"Authorization": "Bearer mauvais"})
     assert r.status_code == 401
     r = getattr(c, methode)(chemin, headers={"Authorization": f"Basic {JETON}"})
     assert r.status_code == 401
 
 
-def test_sans_jeton_configure_les_routes_de_dossier_sont_fermees(monkeypatch):
+def test_sans_jeton_configure_les_routes_de_dossier_sont_fermees(monkeypatch, tmp_path):
     """Sans authentification configuree, l'API ne sert AUCUNE donnee de sante.
 
     L'ancienne version basculait en « mode developpement » et repondait 200 :
@@ -96,7 +107,14 @@ def test_sans_jeton_configure_les_routes_de_dossier_sont_fermees(monkeypatch):
     docs/securite/politique-securite.md). Le comportement attendu est
     maintenant 503 : le service se declare indisponible plutot que de s'ouvrir.
     """
-    monkeypatch.delenv("H2_TOKEN", raising=False)
+    # Isoler les trois sources de jetons : un poste de developpement peut
+    # posseder un registre et une cle JWT dans ses fichiers .env locaux.
+    from securite.jetons import Verificateur
+
+    etat = api_h2.app.state.securite
+    sans_jeton = replace(etat.conf, registre=tmp_path / "registre-absent.json",
+                         jwt_secret="", variable_jeton="")
+    monkeypatch.setattr(etat, "verificateur", Verificateur(sans_jeton))
     monkeypatch.setattr(api_h2, "STORE", stores.StoreMemoire(copy.deepcopy(DOCS), REFS))
     c = TestClient(api_h2.app)
 

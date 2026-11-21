@@ -3,35 +3,34 @@
 Version retenue par l'équipe : **FHIR R5 (5.0.0)**. La mention R4 du cahier
 des charges initial devra être alignée sur cette décision dans le rendu.
 
-## Première étape de l'API locale
+## Démarrer l'API H1
 
-Depuis ce dossier, avec les dépendances de `requirements.txt` installées :
+Installer les dépendances, configurer le `.env` local et générer le registre de
+jetons et les certificats selon le [guide racine](../README.md#mise-en-route).
+Depuis `hopital1/`, lancer ensuite :
 
 ```powershell
-python configurer_jeton.py
-$env:SEC_MODE = "local"
-$env:SEC_TLS_REQUIS = "0"
-python -m uvicorn app:app --host 127.0.0.1 --port 8000
+..\.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8000 --ssl-keyfile ..\securite\certificats\h1.key.pem --ssl-certfile ..\securite\certificats\h1.cert.pem
 ```
 
-Ces commandes servent uniquement aux essais sur un poste isolé. Pour l'échange
-entre postes, utiliser les certificats et les commandes HTTPS du
-[guide racine](../README.md#mise-en-route).
+Pour un essai HTTP sur un poste isolé, régler `SEC_MODE=local` et
+`SEC_TLS_REQUIS=0` dans le `.env` local et omettre les deux options SSL.
 
-- Documentation interactive : http://127.0.0.1:8000/docs
+- Documentation interactive : https://127.0.0.1:8000/docs
 - État de l'API (sans test Oracle) : `GET /health`
 - Export de Youssef : `GET /api/patients/P1-0106/bundle`
 
-Les routes de dossier exigent `Authorization: Bearer <jeton>`. Le script
-`configurer_jeton.py` crée `H1_API_TOKEN` dans `.env` s'il n'existe pas, sans
-afficher sa valeur. Redémarrer Uvicorn après cette configuration. Dans Swagger,
-utiliser **Authorize** et saisir la valeur du jeton seule, sans le préfixe Bearer.
+Les routes de dossier exigent `Authorization: Bearer <jeton>` et la portée
+appropriée. Le jeton local `h1-interne` se trouve dans
+`../securite/jetons_locaux/h1-interne.txt` après génération et ne doit jamais
+être commité. Dans Swagger, utiliser **Authorize** et saisir sa valeur seule,
+sans le préfixe Bearer.
 Sans jeton valide : 401 + OperationOutcome avant tout accès à Oracle.
 Sans configuration serveur : 503. `/health` reste accessible sans jeton.
 
-Il s'agit d'un jeton opaque partagé pour le prototype, pas d'un JWT. Le fichier
-`.env` est exclu de Git. La couche commune apporte désormais TLS, les droits
-par portée et la rotation des jetons ; voir [`securite/`](../securite/).
+`configurer_jeton.py` ne sert qu'aux anciens essais locaux avec un jeton
+partagé donnant tous les droits ; préférer le registre de la
+[couche commune](../securite/README.md). Le `.env` est exclu de Git.
 
 La route d'export lit Oracle et renvoie un Bundle R5 avec le type de contenu
 `application/fhir+json`. Les erreurs métier sont retournées en `OperationOutcome`
@@ -58,8 +57,8 @@ un endpoint de transaction FHIR standard et ne conserve pas de journal d'import.
 Dans un deuxième PowerShell ouvert dans ce dossier :
 
 ```powershell
-$jetonH1 = .\.venv\Scripts\python.exe -c "from dotenv import dotenv_values; print(dotenv_values('.env')['H1_API_TOKEN'])"
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/retours/simulation" -Headers @{Authorization="Bearer $jetonH1"} -ContentType "application/fhir+json" -InFile ".\exemples\retour_clinique_youssef.json" | ConvertTo-Json -Depth 10
+$jetonH1 = (Get-Content ..\securite\jetons_locaux\h1-interne.txt -Raw).Trim()
+Invoke-RestMethod -Method Post -Uri "https://127.0.0.1:8000/api/retours/simulation" -Headers @{Authorization="Bearer $jetonH1"} -ContentType "application/fhir+json" -InFile ".\exemples\retour_clinique_youssef.json" | ConvertTo-Json -Depth 10
 ```
 
 ## Import définitif du retour
@@ -80,7 +79,7 @@ Le résultat est un rapport JSON applicatif avec `simulation: false` et
 Le contrat de cette route devra être partagé avec H2.
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/api/retours" -Headers @{Authorization="Bearer $jetonH1"} -ContentType "application/fhir+json" -InFile ".\exemples\retour_clinique_youssef.json" | ConvertTo-Json -Depth 10
+Invoke-RestMethod -Method Post -Uri "https://127.0.0.1:8000/api/retours" -Headers @{Authorization="Bearer $jetonH1"} -ContentType "application/fhir+json" -InFile ".\exemples\retour_clinique_youssef.json" | ConvertTo-Json -Depth 10
 ```
 
 Après deux envois du même exemple, exécuter `verifier_retour.sql` dans SQL*Plus :
@@ -158,15 +157,22 @@ Oracle H1 ◀──fhir_to_h1.py── Bundle FHIR R5 ◀── (API REST) ◀�
 
 ## Installation (une fois)
 
-```cmd
-cd D:\interoperabilite\projet\hopital1
-pip install --no-cache-dir -r requirements.txt
-copy .env.example .env
+```powershell
+# Depuis la racine du dépôt, après création de .venv (voir README racine).
+cd hopital1
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
+
+L'ancien historique exposait les mots de passe Oracle de l'administration et
+du compte applicatif `hopital1` ; les deux doivent être changés dans Oracle.
+Renseigner `ORACLE_PWD` dans `.env` **après** cette rotation ; les commandes
+qui accèdent à la base échouent tant que la nouvelle valeur applicative n'est
+pas configurée.
 
 ## Tester, niveau par niveau
 
-1. **Tests sans Oracle** : `python -m pytest -v` (71 tests au 21/11/2026)
+1. **Tests sans Oracle** : `..\.venv\Scripts\python.exe -m pytest tests -q` (23 tests vérifiés)
 2. **Validation FHIR** : `python valider.py exemples\aller_youssef_S1.json`
 3. **Aller avec Oracle** : `python exporter.py AB123456` → `sortie\bundle_AB123456.json`
 4. **Cas dégradés** : `python exporter.py J778241` (D1, refus 403), `python exporter.py --ipp P1-0112` (D4)…
@@ -192,11 +198,14 @@ Les libelles source restent dans `CodeableConcept.text`. `Coding.display`
 n'est renseigne pour LOINC/CIM-10 que si un libelle officiel est connu ; les
 libelles locaux ne sont plus presentes comme des libelles officiels.
 
-Commande de validation (Java 17 installe sur ce poste) :
+Le validateur officiel et les fichiers sous `validation/` ne sont pas inclus
+dans le dépôt. Après avoir obtenu localement le validateur et généré le Bundle,
+une commande de validation possible est :
 
 ```powershell
-& "C:\Program Files\Java\jdk-17\bin\java.exe" "-Dfile.encoding=UTF-8" -Xmx2g -jar ".\validation\validator_cli.jar" ".\sortie\bundle_AB123456.json" -version 5.0.0 -output ".\validation\rapport_aller_corrige.json"
-.\.venv\Scripts\python.exe resumer_validation.py ".\validation\rapport_aller_corrige.json"
+$validateur = ".\validation\validator_cli.jar"  # placer le JAR téléchargé ici
+java -Xmx2g -jar $validateur ".\sortie\bundle_AB123456.json" -version 5.0.0 -output ".\validation\rapport_aller_corrige.json"
+..\.venv\Scripts\python.exe resumer_validation.py ".\validation\rapport_aller_corrige.json"
 ```
 
 Le script de resume renvoie un code de sortie 1 si le rapport contient des

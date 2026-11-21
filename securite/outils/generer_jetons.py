@@ -8,7 +8,8 @@ Ce que l'outil ecrit :
 
   securite/registre_jetons.json        les EMPREINTES des jetons et leurs droits
   securite/jetons_locaux/<client>.txt  le jeton en clair, un fichier par client
-  securite/jetons_locaux/env.jetons    les valeurs a recopier dans les .env
+  securite/jetons_locaux/env.h1        valeurs privees du service H1
+  securite/jetons_locaux/env.h2        valeurs privees du service H2
 
 Le jeton en clair n'est jamais affiche a l'ecran : il irait dans l'historique du
 terminal et dans les captures d'ecran. Il est ecrit dans un fichier, que l'on
@@ -164,17 +165,17 @@ def main(argv=None) -> int:
     except OSError:
         pass
 
-    # Valeurs de service : sel du journal d'audit et cle de signature des JWT.
-    env = LOCAUX / "env.jetons"
-    if not env.exists() or arguments.forcer:
-        ecrire_local("env.jetons", "\n".join([
-            "# A RECOPIER dans le .env de chaque service, JAMAIS a commiter.",
-            "# Un sel different par hopital est normal : il empeche de recouper",
-            "# les journaux des deux etablissements.",
-            "SEC_SEL_AUDIT=" + secrets.token_urlsafe(32),
-            "SEC_JWT_SECRET=" + secrets.token_urlsafe(48),
-        ]))
-        print("  + valeurs de service -> " + str(env))
+    # Un sel et une cle JWT distincts par service empechent de recouper les
+    # journaux et de reutiliser un jeton signe pour l'autre hopital.
+    for service in ("h1", "h2"):
+        env = LOCAUX / ("env." + service)
+        if not env.exists() or arguments.forcer:
+            ecrire_local(env.name, "\n".join([
+                "# A RECOPIER uniquement dans hopital" + service[-1] + "/.env, JAMAIS dans Git.",
+                "SEC_SEL_AUDIT=" + secrets.token_urlsafe(32),
+                "SEC_JWT_SECRET=" + secrets.token_urlsafe(48),
+            ]))
+            print("  + valeurs de service -> " + str(env))
 
     print("\nRegistre : " + str(REGISTRE) + "  (" + str(len(registre["clients"])) + " clients)")
     if ecrits:
@@ -183,7 +184,7 @@ def main(argv=None) -> int:
             print("  + " + nom.ljust(14) + str(chemin))
             print("    portees : " + (", ".join(portees) or "aucune (health/metadata seulement)"))
     print("\nEtapes suivantes :")
-    print("  1. recopier securite/jetons_locaux/env.jetons dans le .env de chaque service")
+    print("  1. recopier env.h1 dans hopital1/.env et env.h2 dans hopital2/.env")
     print("  2. transmettre a l'autre hopital SON jeton, par un canal separe")
     print("  3. supprimer les fichiers de securite/jetons_locaux/ une fois transmis")
     print("  4. verifier : py securite/outils/verifier_securite.py")

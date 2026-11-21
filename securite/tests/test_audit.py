@@ -258,6 +258,8 @@ def test_pseudonyme_change_avec_le_sel(chemin_journal):
     ("/api/patients/P2-0051/bundle", "/api/patients/{id}/bundle", "P2-0051"),
     ("/Patient/123456", "/Patient/{id}", "123456"),
     ("/Patient/AB123456", "/Patient/{id}", "AB123456"),
+    ("/api/patients/ABC123/bundle", "/api/patients/{id}/bundle", "ABC123"),
+    ("/Patient/nom-patient", "/Patient/{id}", "nom-patient"),
 ])
 def test_normaliser_chemin_remplace_l_identifiant(chemin_journal, chemin, gabarit,
                                                   identifiant):
@@ -311,6 +313,11 @@ def test_tous_les_parametres_sensibles_sont_masques(chemin_journal, nom):
 def test_masquage_insensible_a_la_casse_du_parametre(chemin_journal):
     assert fabriquer(chemin_journal).masquer_parametres("IDENTIFIER=x") == {
         "IDENTIFIER": "***"}
+
+
+def test_parametre_inconnu_ne_conserve_pas_de_donnee(chemin_journal):
+    assert fabriquer(chemin_journal).masquer_parametres("commentaire=donnee-clinique") == {
+        "commentaire": "***"}
 
 
 @pytest.mark.parametrize("requete, attendu", [

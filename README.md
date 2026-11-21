@@ -23,14 +23,17 @@ MongoDB ──► API H2 ──HTTPS──► API H1 ──► Oracle
 
 ## Organisation du dépôt
 
-```
-hopital1/              API et adaptateurs du CHU (Oracle)
-hopital2/              API et adaptateurs de la clinique (MongoDB)
-securite/              Couche de sécurité commune aux deux API
-docs/                  Documentation partagée
-  securite/            Politique, procédures, configuration
-archive/               Copies historiques locales, exclues du dépôt
-```
+| Partie | Rôle | Commencer par |
+| --- | --- | --- |
+| [`hopital1/`](hopital1/) | CHU : Oracle, adaptateurs FHIR, API d'export et de réception | [`hopital1/README.md`](hopital1/README.md) |
+| [`hopital2/`](hopital2/) | Clinique : MongoDB, adaptateurs FHIR, API et client d'envoi | [`hopital2/LISEZMOI.md`](hopital2/LISEZMOI.md) |
+| [`securite/`](securite/) | Authentification, HTTPS, audit et protections HTTP des deux API | [`securite/README.md`](securite/README.md) |
+| [`docs/`](docs/) | Architecture, avancement et procédures communes | [`docs/architecture-et-contributions.md`](docs/architecture-et-contributions.md) |
+
+Le [plan détaillé du dépôt](docs/architecture-et-contributions.md) indique les
+fichiers principaux, les tests et les responsabilités de chaque lot. Les noms
+des responsables H1 et H2 restent à confirmer par l'équipe : un commit Git peut
+regrouper le travail de plusieurs personnes.
 
 Chaque service garde ses modules **à plat** dans son dossier : ils s'importent
 entre eux par leur nom (`import config as C`, `import oracle_repo as repo`) et
@@ -41,40 +44,46 @@ est partagé par les deux.
 
 ## Mise en route
 
-```bash
-# Dépendances (un environnement par poste)
+Sur Windows PowerShell, depuis la racine du dépôt :
+
+```powershell
+# Un environnement Python local et les dépendances des trois parties
 py -m venv .venv
-./.venv/Scripts/python.exe -m pip install -r securite/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r securite/requirements.txt -r hopital1/requirements.txt -r hopital2/requirements.txt
 
 # Sécurité : jetons, certificats, garde-fou de commit
-py securite/outils/generer_jetons.py
-py securite/outils/generer_certificats.py --ip <adresse IP du poste>
-py securite/outils/installer_hooks.py
+.\.venv\Scripts\python.exe securite/outils/generer_jetons.py
+$ipDuPoste = Read-Host "Adresse IP utilisée pour joindre ce poste"
+.\.venv\Scripts\python.exe securite/outils/generer_certificats.py --ip $ipDuPoste
+.\.venv\Scripts\python.exe securite/outils/installer_hooks.py
 
 # Configuration locale de chaque service
-cp hopital1/.env.example hopital1/.env      # puis renseigner les valeurs
-cp hopital2/.env.example hopital2/.env
+if (-not (Test-Path hopital1/.env)) { Copy-Item hopital1/.env.example hopital1/.env }
+if (-not (Test-Path hopital2/.env)) { Copy-Item hopital2/.env.example hopital2/.env }
+# Renseigner ensuite les valeurs propres à chaque poste dans les fichiers .env.
 ```
 
 Détail des variables : [`docs/securite/configuration.md`](docs/securite/configuration.md).
+Pour lancer H1 et H2 en parallèle, ouvrir deux terminaux distincts à la
+racine du dépôt. H1 nécessite Oracle ; H2 nécessite MongoDB.
 
 ### Lancer l'API du CHU (H1)
 
-```bash
-cd hopital1
-python -m uvicorn app:app --port 8000 \
-    --ssl-keyfile ../securite/certificats/h1.key.pem \
+```powershell
+Set-Location hopital1
+..\.venv\Scripts\python.exe -m uvicorn app:app --port 8000 `
+    --ssl-keyfile ../securite/certificats/h1.key.pem `
     --ssl-certfile ../securite/certificats/h1.cert.pem
 ```
 
 ### Lancer l'API de la clinique (H2)
 
-```bash
-cd hopital2
-python -m uvicorn api_h2:app --port 8002 \
-    --ssl-keyfile ../securite/certificats/h2.key.pem \
+```powershell
+Set-Location hopital2
+..\.venv\Scripts\python.exe -m uvicorn api_h2:app --port 8002 `
+    --ssl-keyfile ../securite/certificats/h2.key.pem `
     --ssl-certfile ../securite/certificats/h2.cert.pem
-# ou, avec MongoDB : docker compose up -d
+# Avec MongoDB en conteneur : docker compose up -d
 ```
 
 Sur un poste de test isolé, sans certificats : `SEC_MODE=local` et
@@ -82,8 +91,9 @@ Sur un poste de test isolé, sans certificats : `SEC_MODE=local` et
 
 ### Démonstration sans serveur ni base
 
-```bash
-cd hopital2 && python demo.py
+```powershell
+Set-Location hopital2
+..\.venv\Scripts\python.exe demo.py
 ```
 
 ---
@@ -93,7 +103,7 @@ cd hopital2 && python demo.py
 | | H1 (CHU) | H2 (Clinique) |
 | --- | --- | --- |
 | État du service | `GET /health` | `GET /health`, `GET /metadata` |
-| Envoyer un dossier | `GET /api/patients/{ipp}/bundle` | `GET /api/patients/{id}/bundle` |
+| Préparer un dossier à envoyer | `GET /api/patients/{ipp}/bundle` | `GET /api/patients/{id}/bundle` |
 | Recevoir à blanc | `POST /api/retours/simulation` | `POST /api/retours/simulation` |
 | Recevoir | `POST /api/retours` | `POST /api/retours`, `POST /Bundle` |
 | Documentation | `GET /docs` | `GET /docs` |
@@ -131,8 +141,8 @@ répond `503` : il ne s'ouvre jamais.
 - [`docs/securite/procedure-secrets.md`](docs/securite/procedure-secrets.md) — jetons et mots de passe
 - [`docs/securite/tls-https.md`](docs/securite/tls-https.md) — mise en place de HTTPS
 
-```bash
-py securite/outils/verifier_securite.py      # auditeur automatique du dépôt
+```powershell
+.\.venv\Scripts\python.exe securite/outils/verifier_securite.py
 ```
 
 **Ce dépôt ne doit jamais contenir** : fichier `.env`, jeton en clair, clé
@@ -142,10 +152,13 @@ privée, registre de jetons, journal d'accès, dossier patient réel.
 
 ## Tests
 
-```bash
-./.venv/Scripts/python.exe -m pytest securite/tests -q     # couche de sécurité
-cd hopital2 && python -m pytest -q                         # API de la clinique
-cd hopital1 && python -m pytest -q tests                   # adaptateurs du CHU
+```powershell
+# Depuis la racine du dépôt :
+.\.venv\Scripts\python.exe -m pytest securite/tests -q
+Set-Location hopital2
+..\.venv\Scripts\python.exe -m pytest -q
+Set-Location ../hopital1
+..\.venv\Scripts\python.exe -m pytest -q tests
 ```
 
 ---
@@ -157,8 +170,6 @@ chaque côté, ce qui reste à faire, et pour qui.
 
 ## Qui fait quoi
 
-| Partie | Périmètre |
-| --- | --- |
-| Hôpital 1 | Base Oracle, adaptateurs H1 ⇄ FHIR, API du CHU |
-| Hôpital 2 | Base MongoDB, adaptateurs H2 ⇄ FHIR, API de la clinique, client d'envoi |
-| Sécurité | `securite/`, `docs/securite/`, durcissement des deux API, organisation du dépôt |
+Les responsabilités **par partie** et les fichiers correspondants sont dans
+[`docs/architecture-et-contributions.md`](docs/architecture-et-contributions.md).
+L'attribution **par personne** y est à compléter avec les noms validés par l'équipe.

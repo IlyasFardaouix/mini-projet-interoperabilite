@@ -13,11 +13,12 @@ depuis lequel le service est lancé).
 
 ## Action manuelle requise
 
-Un ancien fichier d'exemple exposait une valeur de mot de passe Oracle. Le
-gabarit publié contient désormais uniquement un marqueur fictif et les copies
-historiques restent hors du dépôt. Le responsable H1 doit changer le mot de
-passe du compte Oracle et conserver la nouvelle valeur seulement dans son
-`.env` local.
+Un ancien commit exposait deux mots de passe Oracle : celui de l'administration
+et celui du compte applicatif `hopital1`. Les fichiers actuels ne contiennent
+que des marqueurs fictifs. Le responsable H1 doit changer les deux mots de
+passe dans Oracle et conserver la nouvelle valeur applicative seulement dans
+son `.env` local. Une purge de l'historique ne rend pas les anciennes valeurs
+sûres : des clones et caches peuvent encore les contenir.
 
 Le reste de ce document liste les variables à ajouter aux deux `.env`.
 
@@ -43,7 +44,7 @@ Si aucune des trois sources n'est renseignée, les routes de dossier répondent
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `SEC_JOURNAL` | `journaux/securite-<service>.jsonl` | Fichier du journal d'accès, au format JSONL chaîné. |
-| `SEC_SEL_AUDIT` | `sel-local-<service>` | Clé HMAC de pseudonymisation des identifiants de patient. **À renseigner** : avec le défaut, le pseudonyme est prévisible. Valeur générée dans `securite/jetons_locaux/env.jetons`. |
+| `SEC_SEL_AUDIT` | `sel-local-<service>` | Clé HMAC de pseudonymisation des identifiants de patient. **À renseigner** : avec le défaut, le pseudonyme est prévisible. Valeur propre à chaque service dans `securite/jetons_locaux/env.h1` ou `env.h2`. |
 | `SEC_ANONYMISER_IP` | `0` | `1` tronque l'adresse IP (`/24` en IPv4, `/48` en IPv6). Garder `0` pour pouvoir identifier la source d'un accès anormal. |
 
 Un sel **différent par établissement** est normal : il empêche de recouper les

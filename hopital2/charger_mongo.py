@@ -5,17 +5,19 @@ charger_mongo.py — charge hopital2_mongodb_v3.js dans MongoDB (base « hopital
 Collections : organisations, locations, endpoints, devices, practitioners, practitioner_roles, patients.
 Sans mongosh : le fichier .js est lu par Python (ISODate(...) → vraies dates BSON).
 
-  python charger_mongo.py hopital2_mongodb_v3.js                       # MongoDB sur localhost:27017
-  python charger_mongo.py hopital2_mongodb_v3.js --uri mongodb://...   # autre serveur
+  python charger_mongo.py hopital2_mongodb_v3.js                       # identifiants de .env
+  python charger_mongo.py hopital2_mongodb_v3.js --remplacer           # recharge une base deja remplie
   python charger_mongo.py hopital2_mongodb_v3.js --json-out data       # écrit data/patients_h2.json + data/referentiels_h2.json
 
-Attention : les collections sont VIDÉES avant le chargement (comme le font les db.<collection>.drop() du .js).
+Une collection deja remplie bloque le chargement sans --remplacer.
 """
 import argparse
 import json
 import os
 import re
 import sys
+from pathlib import Path
+from urllib.parse import quote_plus
 
 from bson import json_util
 
@@ -40,12 +42,27 @@ def _json(obj):
     return json.loads(json_util.dumps(obj, json_options=json_util.RELAXED_JSON_OPTIONS))
 
 
+def uri_locale() -> str:
+    """Construit une URI authentifiée sans exposer le mot de passe en argument CLI."""
+    from dotenv import dotenv_values
+
+    valeurs = dotenv_values(Path(__file__).with_name(".env"))
+    utilisateur = os.getenv("MONGO_UTILISATEUR") or valeurs.get("MONGO_UTILISATEUR")
+    mot_de_passe = os.getenv("MONGO_MOT_DE_PASSE") or valeurs.get("MONGO_MOT_DE_PASSE")
+    if not utilisateur or not mot_de_passe:
+        raise ValueError("MONGO_UTILISATEUR et MONGO_MOT_DE_PASSE doivent être définis dans .env.")
+    return (f"mongodb://{quote_plus(utilisateur)}:{quote_plus(mot_de_passe)}"
+            "@127.0.0.1:27017/?authSource=admin")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("fichier_js")
-    p.add_argument("--uri", default="mongodb://localhost:27017")
+    p.add_argument("--uri", help="URI explicite, sinon MONGO_URI ou identifiants du .env local")
     p.add_argument("--base", default="hopital2")
     p.add_argument("--json-out", metavar="DOSSIER", help="écrit des JSON dans ce dossier au lieu de charger MongoDB")
+    p.add_argument("--remplacer", action="store_true",
+                   help="autorise la suppression des collections existantes")
     a = p.parse_args()
     cols = lire_js(a.fichier_js)
     if "patients" not in cols:
@@ -61,7 +78,18 @@ def main() -> int:
         print(f"{len(cols['patients'])} patients + {len(refs)} référentiels écrits dans {a.json_out}/")
         return 0
     from pymongo import MongoClient
-    db = MongoClient(a.uri, serverSelectionTimeoutMS=5000)[a.base]
+    try:
+        uri = a.uri or os.getenv("MONGO_URI") or uri_locale()
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    db = MongoClient(uri, serverSelectionTimeoutMS=5000)[a.base]
+    non_vides = [nom for nom in cols if db[nom].count_documents({})]
+    if non_vides and not a.remplacer:
+        print("Collections déjà remplies : " + ", ".join(non_vides)
+              + ". Relancer avec --remplacer uniquement pour effacer leurs données.",
+              file=sys.stderr)
+        return 2
     for nom, docs in cols.items():
         db[nom].drop()
         db[nom].insert_many(docs)

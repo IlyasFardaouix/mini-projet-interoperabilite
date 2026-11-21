@@ -41,10 +41,12 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote_plus
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import adaptateur_h2_fhir as h2_vers_fhir
@@ -57,6 +59,7 @@ from stores import DejaExistant, StoreIndisponible, StoreMemoire, StoreMongo
 # package securite vit un niveau au-dessus : on ajoute donc la racine du depot
 # au chemin d'import. Voir securite/README.md.
 _RACINE = Path(__file__).resolve().parent.parent
+load_dotenv(Path(__file__).with_name(".env"), override=False)
 if str(_RACINE) not in sys.path:
     sys.path.insert(0, str(_RACINE))
 
@@ -65,11 +68,25 @@ from securite import exiger_portee, installer_securite, lire_json_securise, trac
 VERSION = "3.0"
 FHIR_JSON = "application/fhir+json"
 
-# base des fullUrl : à régler sur l'adresse réelle de l'API (ex. http://192.168.1.20:8002/fhir)
-h2_vers_fhir.FHIR_BASE_URL = os.getenv("FHIR_BASE_URL", "http://localhost:8002/fhir")
+# base des fullUrl : à régler sur l'adresse HTTPS réelle de l'API.
+h2_vers_fhir.FHIR_BASE_URL = os.getenv("FHIR_BASE_URL", "https://localhost:8002/fhir")
 
-STORE = (StoreMongo(os.environ["MONGO_URI"], os.getenv("MONGO_DB", "hopital2"))
-         if os.getenv("MONGO_URI") else StoreMemoire())
+def uri_mongo() -> Optional[str]:
+    """Construit l'URI locale sans exposer le mot de passe dans la configuration Docker."""
+    if os.getenv("MONGO_URI"):
+        return os.environ["MONGO_URI"]
+    utilisateur = os.getenv("MONGO_UTILISATEUR")
+    mot_de_passe = os.getenv("MONGO_MOT_DE_PASSE")
+    if utilisateur and mot_de_passe:
+        hote = os.getenv("MONGO_HOTE", "127.0.0.1")
+        return (f"mongodb://{quote_plus(utilisateur)}:{quote_plus(mot_de_passe)}"
+                f"@{hote}:27017/?authSource=admin")
+    return None
+
+
+_URI_MONGO = uri_mongo()
+STORE = (StoreMongo(_URI_MONGO, os.getenv("MONGO_DB", "hopital2"))
+         if _URI_MONGO else StoreMemoire())
 
 app = FastAPI(title="API FHIR R5 – Hôpital 2 (Clinique Al Baçar)", version=VERSION)
 

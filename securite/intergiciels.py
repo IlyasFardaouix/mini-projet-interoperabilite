@@ -272,7 +272,7 @@ class MiddlewareSecurite:
             http=code,
             methode=scope.get("method"),
             chemin=gabarit,
-            ressource=pseudonyme,
+            ressource=contexte.get("ressource") or pseudonyme,
             parametres=journal.masquer_parametres(requete.decode("latin-1")) or None,
             ip=journal.ip(ip),
             client=contexte.get("client"),

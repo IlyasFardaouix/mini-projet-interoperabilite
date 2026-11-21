@@ -27,7 +27,6 @@ import hashlib
 import hmac
 import json
 import os
-import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,9 +41,11 @@ PARAMETRES_SENSIBLES = {"identifier", "cin", "ipp", "name", "family", "given",
 ENTETES_INTERDITES = {"authorization", "proxy-authorization", "cookie", "set-cookie",
                       "x-api-key", "x-auth-token"}
 
-# Segment de chemin qui ressemble a un identifiant de ressource.
-_SEGMENT_IDENTIFIANT = re.compile(
-    r"^(?:P\d-\d+|[A-Z]{1,2}\d{4,}|\d{4,}|[0-9a-fA-F-]{16,}|[A-Z]\d+-\d+)$")
+# Un chemin inconnu peut contenir une donnee personnelle. On ne conserve en
+# clair que les segments statiques des routes publiees par les deux API.
+SEGMENTS_PUBLICS = {"api", "patients", "Patient", "bundle", "retours",
+                    "simulation", "health", "metadata", "docs", "redoc",
+                    "openapi.json", "$everything"}
 
 TAILLE_ROTATION = 5 * 1024 * 1024          # 5 Mo : au-dela, le fichier est archive
 
@@ -109,7 +110,7 @@ class JournalSecurite:
         identifiants = []
         segments = []
         for segment in (chemin or "/").split("/"):
-            if segment and _SEGMENT_IDENTIFIANT.match(segment):
+            if segment and segment not in SEGMENTS_PUBLICS:
                 identifiants.append(segment)
                 segments.append("{id}")
             else:
@@ -127,10 +128,10 @@ class JournalSecurite:
             nom = nom.strip()[:40]
             if not nom:
                 continue
-            if nom.lower() in PARAMETRES_SENSIBLES:
-                resultat[nom] = "***"
-            else:
-                resultat[nom] = valeur[:60]
+            # Seul un entier de pagination est sans risque. Un parametre
+            # inconnu peut contenir un nom, un CIN ou une information clinique.
+            resultat[nom] = (valeur[:60] if nom.lower() == "_count" and valeur.isdecimal()
+                             else "***" if valeur else "")
         return resultat
 
     # -- ecriture ----------------------------------------------------------

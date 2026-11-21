@@ -428,8 +428,7 @@ Chaque ligne porte dans `prec` l'empreinte SHA-256 de la ligne précédente, la 
 valant `genesis`. Supprimer ou modifier une ligne rompt la chaîne.
 
 ```powershell
-cd d:\interoperabilite\projet
-py -c "from securite.audit import verifier_chaine; print(verifier_chaine('journaux/securite-h2.jsonl'))"
+.\.venv\Scripts\python.exe -c "from securite.audit import verifier_chaine; print(verifier_chaine('journaux/securite-h2.jsonl'))"
 ```
 
 Sortie attendue : `{'lignes': 412, 'intact': True, 'premiere_rupture': None, ...}`.
@@ -545,7 +544,7 @@ est devenu `hopital2/`. Les constats ci-dessous emploient les noms actuels.
 | P0-4 | MongoDB sans authentification, port 27017 publié sur toutes les interfaces | `hopital2/docker-compose.yml:6-9` | authentification MongoDB activée, port lié à `127.0.0.1` | Corrigé | Sécurité et H2 |
 | P0-5 | Conteneur exécuté en root ; `COPY *.py` embarque les fichiers de test dans l'image | `hopital2/Dockerfile:5-8` | utilisateur non privilégié, copie restreinte aux fichiers de service | Corrigé | Sécurité et H2 |
 | P0-6 | Aucun `.gitignore` à la racine : `adaptateur_h1/sortie/` contient de vrais Bundles patients, `hopital1/.venv/` un environnement virtuel importé d'un autre poste, plus les caches `__pycache__` et `.pytest_cache`. Risque de publication de données de santé sur GitHub | racine du dépôt | `.gitignore` racine couvrant sorties, environnements, caches, secrets et certificats | Corrigé | Sécurité |
-| P0-7 | Un ancien fichier d'exemple contenait une valeur de mot de passe Oracle, vraisemblablement réelle | `hopital1/.env.example` et copies historiques | valeurs d'exemple fictives uniquement ; mot de passe réel à changer (voir `procedure-secrets.md`) | Gabarit corrigé ; rotation à faire | Sécurité et H1 |
+| P0-7 | Un ancien commit contenait deux mots de passe Oracle (administration et compte applicatif) | anciennes copies documentaires et gabarits | valeurs d'exemple fictives uniquement ; changer les deux mots de passe dans Oracle (voir `procedure-secrets.md`) | Gabarits corrigés ; rotations à faire | Sécurité et H1 |
 
 ### 11.2 P1 — défaut de contrôle ou de traçabilité
 

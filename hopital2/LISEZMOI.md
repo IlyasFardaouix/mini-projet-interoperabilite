@@ -7,15 +7,32 @@ et sur `hopital2_mongodb_v3.js` régénéré (60 patients + annuaire en 6 collec
 ## Démarrer
 
 Depuis ce dossier, `python demo.py` lance la démonstration sans base et
-`python -m pytest -q` lance les 146 tests. Pour démarrer l'API avec MongoDB,
+`python -m pytest -q` lance les 147 tests. Pour démarrer l'API avec MongoDB,
 configurer d'abord `hopital2/.env`, les jetons et les certificats selon le
 [guide racine](../README.md#mise-en-route), puis lancer `docker compose up -d`.
 MongoDB exige un compte et son port n'est accessible que sur le poste local.
 
+Pour charger les données **fictives**, renseigner `MONGO_UTILISATEUR` et
+`MONGO_MOT_DE_PASSE` dans `hopital2/.env`, puis exécuter depuis ce dossier :
+
+```powershell
+docker compose up -d mongo
+python charger_mongo.py hopital2_mongodb_v3.js
+docker compose up -d api
+```
+
+Le chargeur refuse une base déjà remplie. L'option `--remplacer` efface puis
+recrée les collections du jeu de démonstration ; elle doit être utilisée
+uniquement si cette remise à zéro est voulue. Les identifiants restent dans le
+`.env` local et ne sont pas passés en ligne de commande.
+
 Une route protégée refuse tout appel sans jeton. Si aucune source de jetons
 n'est configurée, elle répond `503`. Les échanges entre postes exigent HTTPS.
-Variables principales : `MONGO_URI`, `MONGO_DB`, `FHIR_BASE_URL`,
-`H1_IPP_SYSTEM` et celles de la [couche sécurité](../docs/securite/configuration.md).
+Variables principales : `MONGO_UTILISATEUR`, `MONGO_MOT_DE_PASSE`, `MONGO_DB`,
+`FHIR_BASE_URL`, `H1_IPP_SYSTEM` et celles de la
+[couche sécurité](../docs/securite/configuration.md). `MONGO_URI` reste une
+option pour une base externe ; dans le déploiement Compose local, l'API construit
+l'URI à partir des identifiants du `.env`.
 
 ## Routes
 
@@ -67,10 +84,13 @@ Les erreurs sont toujours des `OperationOutcome`. Les succès de `/api/retours` 
 Export depuis l'API H2 → simulation chez H1 → file SQLite → envoi → reprise. Réessai à 1 min, 5 min, 30 min, 2 h, 6 h
 (6 essais), uniquement pour les pannes (injoignable, 408, 429, 5xx). 403/409/422 = « echec », une personne doit regarder.
 Le même Bundle et le même identifiant d'échange sont rejoués.
+Ce fichier est un **module Python** (`envoyer_dossier`, `reprendre`, `Outbox`),
+pas une commande autonome. `demo.py` montre son fonctionnement sans serveur ;
+l'orchestration réelle entre les deux API reste à intégrer.
 
 ## Ce qui est vérifié, et ce qui ne l'est pas
 
-Vérifié : 146 tests (API sur base mémoire **et** MongoDB simulé, client d'envoi contre une fausse API H1) ; les 60 patients
+Vérifié : 147 tests (API sur base mémoire **et** MongoDB simulé, client d'envoi contre une fausse API H1) ; les 60 patients
 s'exportent en FHIR R5 valide (`fhir.resources`) et reviennent en base en mode strict ; des tests échouent bien quand on
 désactive l'anti-boucle ou qu'on autorise l'écrasement.
 
@@ -99,7 +119,7 @@ verrou optimiste).
 
 `api_h2.py` routes et sécurité · `echange.py` règles d'échange · `stores.py` base (mémoire / MongoDB) ·
 `client_envoi.py` envoi + file d'attente · `charger_mongo.py` chargement du `.js` · `demo.py` démonstration ·
-`exemples/` requêtes et réponses réelles · `exemples_h1.py` Bundles « comme H1 » · `test_*.py` tests · `data/` les 60 patients en JSON.
+`exemples/` requêtes et réponses fictives · `exemples_h1.py` Bundles « comme H1 » · `test_*.py` tests · `data/` les 60 patients en JSON.
 
 ## Identifiant patient manquant (« UNKNOWN »)
 

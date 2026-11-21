@@ -59,7 +59,7 @@ logger = logging.getLogger("h2_fhir")
 # ══════════════════════════════════════════════════════════════════════════════
 
 # À aligner avec l'API REST (base du serveur FHIR). Sert à construire les fullUrl.
-FHIR_BASE_URL = "http://localhost:8080/fhir"
+FHIR_BASE_URL = "https://localhost:8002/fhir"
 
 H2_SYSTEM_PATIENT_ID  = "urn:clinique-al-bacar:patient"
 H2_SYSTEM_NATIONAL_ID = "urn:ma:cin"                      # CIN (inchangé)

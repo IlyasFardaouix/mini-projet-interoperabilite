@@ -1,7 +1,8 @@
 """
 client_envoi.py — envoie un dossier de H2 vers l'API de H1, avec file d'attente et reprise
 =========================================================================================
-Ce n'est PAS une route : c'est un petit programme qui relie les deux API.
+Ce n'est PAS une route ni une commande autonome : c'est un module destiné à
+être appelé par l'orchestrateur de l'échange entre les deux API.
 
   1. demande le Bundle à l'API H2           GET  /api/patients/{id}/bundle   (403 = consentement refusé : on s'arrête)
   2. teste chez H1 à blanc                  POST /api/retours/simulation     (refus définitif : on s'arrête)

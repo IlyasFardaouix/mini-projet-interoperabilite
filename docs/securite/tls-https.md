@@ -9,7 +9,7 @@ API en HTTPS, échange du certificat racine, vérification, erreurs fréquentes.
 | Date | 21 novembre 2026 |
 | Public | responsable H1, responsable H2, responsable sécurité |
 | Document parent | [`politique-securite.md`](politique-securite.md) |
-| Toutes les commandes | se lancent depuis `d:\interoperabilite\projet` (PowerShell) |
+| Toutes les commandes | les exemples partent de la racine du dépôt (PowerShell) |
 | Durée | environ 20 minutes la première fois, les deux postes ensemble |
 
 ---
@@ -63,8 +63,7 @@ py -m pip install "cryptography>=43"
 Génération :
 
 ```powershell
-cd d:\interoperabilite\projet
-py securite\outils\generer_certificats.py
+.\.venv\Scripts\python.exe securite\outils\generer_certificats.py
 ```
 
 Avec les adresses réelles des postes (voir le chapitre 7, à faire dès maintenant si les
@@ -105,15 +104,15 @@ et surtout les **noms couverts** : c'est cette liste que le client vérifie.
 ### H1 — CHU Al Massira, port 8000
 
 ```powershell
-cd d:\interoperabilite\projet\hopital1
-py -m uvicorn app:app --host 0.0.0.0 --port 8000 --ssl-keyfile ..\securite\certificats\h1.key.pem --ssl-certfile ..\securite\certificats\h1.cert.pem
+Set-Location hopital1
+..\.venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000 --ssl-keyfile ..\securite\certificats\h1.key.pem --ssl-certfile ..\securite\certificats\h1.cert.pem
 ```
 
 ### H2 — Clinique Al Baçar, port 8002
 
 ```powershell
-cd d:\interoperabilite\projet\hopital2
-py -m uvicorn api_h2:app --host 0.0.0.0 --port 8002 --ssl-keyfile ..\securite\certificats\h2.key.pem --ssl-certfile ..\securite\certificats\h2.cert.pem
+Set-Location hopital2
+..\.venv\Scripts\python.exe -m uvicorn api_h2:app --host 0.0.0.0 --port 8002 --ssl-keyfile ..\securite\certificats\h2.key.pem --ssl-certfile ..\securite\certificats\h2.cert.pem
 ```
 
 Points d'attention :
@@ -125,12 +124,12 @@ Points d'attention :
   `mode strict mais SEC_TLS_REQUIS=0` signifie que le trafic en clair est encore
   toléré : à corriger avant la démonstration ;
 - l'URL devient `https://`. Il faut mettre à jour `FHIR_BASE_URL` dans le `.env` de H2,
-  qui valait `http://localhost:8002/fhir` par défaut.
+  qui peut encore valoir `http://localhost:8002/fhir` dans un ancien `.env`.
 
 Vérification locale immédiate, sur le poste lui-même :
 
 ```powershell
-curl.exe --cacert d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem https://localhost:8000/health
+curl.exe --cacert .\securite\certificats\ac_interop.cert.pem https://localhost:8000/health
 ```
 
 ---
@@ -170,13 +169,13 @@ pour cela le certificat racine. Dans le `.env` du service appelant :
 ```dotenv
 SEC_MODE=strict
 SEC_TLS_REQUIS=1
-SEC_CA=d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem
+SEC_CA=C:\chemin\absolu\vers\securite\certificats\ac_interop.cert.pem
 ```
 
 Pour un essai dans la session courante seulement :
 
 ```powershell
-$env:SEC_CA = "d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem"
+$env:SEC_CA = (Resolve-Path .\securite\certificats\ac_interop.cert.pem).Path
 ```
 
 Ce que `SEC_CA` change concrètement (`securite/client.py:57-71`) :
@@ -252,7 +251,7 @@ Sous PowerShell, `curl` est un alias de `Invoke-WebRequest` : il faut écrire
 Étape 1 — la route libre, depuis l'autre poste :
 
 ```powershell
-curl.exe --cacert d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
+curl.exe --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
 ```
 
 Réponse attendue : `{"status":"ok","service":"H1","fhirVersion":"5.0.0"}`.
@@ -261,20 +260,20 @@ Réponse attendue : `{"status":"ok","service":"H1","fhirVersion":"5.0.0"}`.
 l'écran) :
 
 ```powershell
-curl.exe --cacert d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem -H "Authorization: Bearer $env:H1_API_TOKEN" https://192.168.1.20:8000/api/patients/<ipp>/bundle
+curl.exe --cacert .\securite\certificats\ac_interop.cert.pem -H "Authorization: Bearer $env:H1_API_TOKEN" https://192.168.1.20:8000/api/patients/P1-0106/bundle
 ```
 
 Étape 3 — contrôler que le refus du trafic en clair fonctionne. L'appel suivant doit
 échouer, pas réussir :
 
 ```powershell
-curl.exe http://192.168.1.20:8000/api/patients/<ipp>/bundle
+curl.exe http://192.168.1.20:8000/api/patients/P1-0106/bundle
 ```
 
 Étape 4 — vérifier les en-têtes de sécurité et le code de retour :
 
 ```powershell
-curl.exe -i --cacert d:\interoperabilite\projet\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
+curl.exe -i --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
 ```
 
 `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy` et

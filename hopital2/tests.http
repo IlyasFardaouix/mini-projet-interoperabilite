@@ -1,19 +1,23 @@
-@base = http://127.0.0.1:8002
+@base = https://127.0.0.1:8002
+@token = COLLER_UN_JETON_H2_LOCAL_ICI
 
 ### Santé
 GET {{base}}/health
 
 ### ENVOYER : le Bundle de P2-0051
 GET {{base}}/api/patients/P2-0051/bundle
+Authorization: Bearer {{token}}
 
 ### RECEVOIR À BLANC : aucun écrit en base
 POST {{base}}/api/retours/simulation
+Authorization: Bearer {{token}}
 Content-Type: application/fhir+json
 
 < ./exemples/aller_H1_nouveau_patient.json
 
 ### RECEVOIR pour de vrai : crée le patient (201)
 POST {{base}}/api/retours
+Authorization: Bearer {{token}}
 Content-Type: application/fhir+json
 X-Exchange-Id: test-001
 
@@ -23,18 +27,22 @@ X-Exchange-Id: test-001
 
 ### 403 : consentement refusé (P2-0054). Attendu : 403 + OperationOutcome
 GET {{base}}/api/patients/P2-0054/bundle
+Authorization: Bearer {{token}}
 
 ### 404 : patient inconnu. Attendu : 404 + OperationOutcome
 GET {{base}}/api/patients/P2-9999/bundle
+Authorization: Bearer {{token}}
 
 ### 400 : ce n'est pas un Bundle. Attendu : 400
 POST {{base}}/api/retours/simulation
+Authorization: Bearer {{token}}
 Content-Type: application/fhir+json
 
 { "resourceType": "Patient" }
 
 ### 422 : Bundle valide mais Patient sans CIN ni IPP. Attendu : 422 "Identité insuffisante"
 POST {{base}}/api/retours/simulation
+Authorization: Bearer {{token}}
 Content-Type: application/fhir+json
 
 {"resourceType":"Bundle","type":"transaction","entry":[
@@ -50,6 +58,6 @@ GET {{base}}/api/patients/P2-0051/bundle
 GET {{base}}/api/patients/P2-0051/bundle
 Authorization: Bearer faux
 
-### 200 : bon jeton
+### 200 : jeton local valide
 GET {{base}}/api/patients/P2-0051/bundle
-Authorization: Bearer abc
+Authorization: Bearer {{token}}

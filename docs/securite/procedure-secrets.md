@@ -10,7 +10,7 @@ fuite.
 | Date | 21 novembre 2026 |
 | Public | responsable H1, responsable H2, responsable sécurité |
 | Document parent | [`politique-securite.md`](politique-securite.md) |
-| Toutes les commandes | se lancent depuis `d:\interoperabilite\projet` (PowerShell) |
+| Toutes les commandes | les exemples partent de la racine du dépôt (PowerShell) |
 
 ---
 
@@ -45,9 +45,10 @@ Conséquences pratiques :
 | `H2_TOKEN` | jeton partagé historique de l'API H2 | H2 (valeur attendue), H1 (valeur présentée) | `hopital2/.env`, `hopital1/.env` | idem | 90 jours, puis migration vers le registre |
 | Jetons du registre | un jeton par client (`h1-chu`, `h2-clinique`, `h1-interne`, `h2-interne`, `supervision`, `audit`) | le client porteur ; le serveur n'a que l'empreinte | en clair dans le `.env` du client ; empreinte dans `securite/registre_jetons.json` | 43 caractères, 256 bits | 90 jours (`expire_le`) |
 | `SEC_SEL_AUDIT` | clé HMAC de pseudonymisation du journal d'accès | chaque service, séparément | `.env` du service | 43 caractères | voir 6.3 : une rotation casse la correspondance des pseudonymes |
-| `SEC_JWT_SECRET` | clé de signature HS256 des JWT, si les JWT sont utilisés | les deux services (valeur commune) | `.env` des deux services | 64 caractères | 90 jours |
-| `ORACLE_PWD` | mot de passe du compte Oracle de H1 | H1 | `hopital1/.env` | mot de passe du SGBD | à changer immédiatement (constat P0-7), puis 90 jours |
-| Identifiants MongoDB | compte applicatif de la base `hopital2` | H2 | `hopital2/.env` (variables de `MONGO_URI`) | utilisateur et mot de passe | 90 jours |
+| `SEC_JWT_SECRET` | clé de signature HS256 des JWT, si les JWT sont utilisés | chaque service, avec une valeur distincte | `.env` du service | 64 caractères | 90 jours |
+| `ORACLE_PWD` | mot de passe du compte applicatif Oracle `hopital1` | H1 | `hopital1/.env` | mot de passe du SGBD | à changer immédiatement (constat P0-7), puis 90 jours |
+| Mot de passe d'administration Oracle | administration de la base Oracle | H1 | hors dépôt, selon l'installation Oracle | mot de passe du SGBD | à changer immédiatement (constat P0-7), puis 90 jours |
+| Identifiants MongoDB | compte de la base `hopital2` | H2 | `MONGO_UTILISATEUR` et `MONGO_MOT_DE_PASSE` dans `hopital2/.env` | utilisateur et mot de passe | 90 jours |
 | `ac_interop.key.pem` | clé privée de l'autorité de certification interne | poste qui a créé l'autorité | `securite/certificats/` | clé ECDSA P-256 | validité 5 ans ; ne sort jamais du poste |
 | `h1.key.pem`, `h2.key.pem` | clés privées des certificats serveurs | poste du service concerné | `securite/certificats/` | clé ECDSA P-256 | validité 1 an |
 
@@ -72,8 +73,7 @@ de son client, pas le jeton partagé.
 ### 3.1 Jetons du registre (cas normal)
 
 ```powershell
-cd d:\interoperabilite\projet
-py securite\outils\generer_jetons.py
+.\.venv\Scripts\python.exe securite\outils\generer_jetons.py
 ```
 
 L'outil écrit :
@@ -82,7 +82,7 @@ L'outil écrit :
 |---|---|---|
 | `securite/registre_jetons.json` | empreintes SHA-256, portées, dates d'expiration | non |
 | `securite/jetons_locaux/<client>.txt` | le jeton en clair, un fichier par client | non |
-| `securite/jetons_locaux/env.jetons` | `SEC_SEL_AUDIT` et `SEC_JWT_SECRET` à recopier | non |
+| `securite/jetons_locaux/env.h1` et `env.h2` | `SEC_SEL_AUDIT` et `SEC_JWT_SECRET` distincts pour chaque service | non |
 
 Aucun jeton n'apparaît à l'écran : la sortie ne donne que le nom du client, le chemin du
 fichier et les portées accordées.
@@ -113,8 +113,8 @@ H1 dispose d'un outil dédié, qui ne remplace jamais une valeur existante et n'
 rien (`hopital1/configurer_jeton.py`) :
 
 ```powershell
-cd d:\interoperabilite\projet\hopital1
-py configurer_jeton.py
+Set-Location hopital1
+..\.venv\Scripts\python.exe configurer_jeton.py
 ```
 
 Il faut ensuite redémarrer uvicorn pour que la valeur soit lue.
@@ -122,22 +122,27 @@ Il faut ensuite redémarrer uvicorn pour que la valeur soit lue.
 ### 3.4 Valeurs de service
 
 `SEC_SEL_AUDIT` et `SEC_JWT_SECRET` sont produits dans
-`securite/jetons_locaux/env.jetons` par `generer_jetons.py`. Chaque service recopie ces
-deux lignes dans son propre `.env`, puis le fichier est supprimé.
+`securite/jetons_locaux/env.h1` et `env.h2` par `generer_jetons.py`. H1 recopie
+les valeurs de `env.h1`, H2 celles de `env.h2`, dans leurs `.env` respectifs.
+Les clés JWT sont elles aussi propres à chaque service : un JWT destiné à H1
+doit être signé avec la clé de H1, et un JWT destiné à H2 avec celle de H2.
+Supprimer ensuite les fichiers de transfert.
 
 Un sel différent par hôpital est normal et voulu : il empêche de recouper les journaux
 des deux établissements (voir `politique-securite.md`, section 8.4).
 
 ### 3.5 Mots de passe de base de données
 
-- **Oracle** : l'ancien mot de passe présent dans un fichier d'exemple
-  (constat P0-7) doit être considéré comme divulgué. Le
-  responsable H1 change le mot de passe du compte Oracle, puis l'inscrit uniquement
-  dans `hopital1/.env`. Les fichiers `.env.example` ne
-  contiennent qu'une valeur fictive du type `ORACLE_PWD=a_renseigner`.
-- **MongoDB** : le responsable H2 crée un compte applicatif dédié à la base `hopital2`
-  et renseigne `MONGO_URI` dans `hopital2/.env`. Le port 27017 reste lié à
-  `127.0.0.1`.
+- **Oracle** : un ancien commit exposait deux mots de passe (administration et
+  compte applicatif `hopital1`) ; tous deux doivent être considérés comme
+  divulgués. Le responsable H1 les change dans Oracle, puis inscrit uniquement
+  la nouvelle valeur applicative dans `hopital1/.env`. Les fichiers
+  `.env.example` ne contiennent qu'un marqueur fictif.
+- **MongoDB** : pour le Compose local, H2 renseigne `MONGO_UTILISATEUR` et
+  `MONGO_MOT_DE_PASSE` dans `hopital2/.env`. Ces valeurs initialisent le compte
+  administrateur du conteneur et sont utilisées par l'API et le chargeur. Le
+  port 27017 reste lié à `127.0.0.1`. Pour un déploiement pérenne, prévoir un
+  compte applicatif dédié avec les droits nécessaires.
 
 ### 3.6 Clés et certificats TLS
 
@@ -332,19 +337,16 @@ pendant un partage d'écran. Dans le doute, traiter comme une fuite.
    Relever : les adresses IP inconnues, les requêtes hors des heures de travail, les
    suites de 401 et 403, les exports en série. Conserver une copie des lignes
    concernées : elles sont pseudonymisées et peuvent être jointes à un rapport.
-4. **Purger l'historique Git** si le secret y est entré. Le fichier doit disparaître de
-   tous les commits, pas seulement du dernier :
-
-   ```powershell
-   git log --oneline -- hopital1/.env.example
-   py -m pip install git-filter-repo
-   py -m git_filter_repo --invert-paths --path hopital1/.env --force
-   git push --force-with-lease origin main
-   ```
-
-   Prévenir les deux coéquipiers avant le `push --force` : chacun doit ensuite
-   récupérer l'historique réécrit. Malgré la purge, le secret reste considéré comme
-   compromis : l'étape 2 n'est pas optionnelle.
+4. **Purger l'historique Git** si le secret y est entré. Rechercher toutes ses
+   occurrences dans les commits et les branches, y compris dans les anciens
+   documents. Dans un clone de travail isolé, remplacer les valeurs exposées
+   avec `git-filter-repo --replace-text`, puis vérifier qu'aucun objet accessible
+   depuis les branches publiées ne les contient. Republier les branches
+   concernées avec `--force-with-lease`, après coordination avec les
+   coéquipiers ; chacun doit récupérer l'historique réécrit dans un clone neuf.
+   Effacer seulement un fichier `.env` de l'historique serait insuffisant si le
+   secret figurait aussi dans un document. Malgré la purge, le secret reste
+   compromis : la rotation de l'étape 2 est indispensable.
 5. **Prévenir.** Dans le projet : les deux coéquipiers immédiatement, l'enseignant dans
    la journée, avec la date de la fuite, la nature du secret et les mesures prises. En
    situation réelle, une fuite portant sur des données de santé déclencherait la

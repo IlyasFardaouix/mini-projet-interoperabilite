@@ -3,6 +3,9 @@
 Dernière mise à jour : 21 novembre 2026, après la livraison de la partie
 **Sécurité** et la réorganisation du dépôt.
 
+Pour identifier les composants et les responsabilités de chaque lot, voir
+[`architecture-et-contributions.md`](architecture-et-contributions.md).
+
 ---
 
 ## En une phrase
@@ -42,7 +45,6 @@ même temps.
 | Lire l'en-tête `X-Exchange-Id` et le reporter dans `journal_echange` | H1 |
 | Ajouter à `journal_echange` les colonnes : identifiant d'échange, destinataire, empreinte du jeton, adresse IP, code HTTP | H1 |
 | Rendre atomique l'import en ligne de commande `hopital1/importer.py` : les données sont validées, puis le journal séparément. Si le journal échoue, les données restent écrites sans trace. La route API, elle, est correcte | H1 |
-| `hopital1/tests/test_adaptateurs.py` : le test `test_S1_...` lit `obs["8480-6"]`. Les versions actuelles regroupent systolique et diastolique dans une seule Observation LOINC `85354-9` avec `component` : le test doit suivre ce changement | H1 |
 | Remplacer les codes SNOMED œil droit / œil gauche signalés inactifs (`18944008`, `8966001`) | H1 + H2 |
 | Trancher l'unité de la glycémie : H1 utilise g/L, H2 stocke mg/dL | H1 + H2 |
 | Reporter la mention « R4 » du cahier des charges en R5 | H1 |
@@ -126,8 +128,8 @@ Détail et justification : [`securite/politique-securite.md`](securite/politique
 
 | À faire | Pour qui |
 | --- | --- |
-| Changer le mot de passe du compte Oracle `hopital1` : il est publié dans les `.env.example` du dépôt, et donc dans l'historique Git | H1 |
-| Vider `H1_API_TOKEN` et `H2_TOKEN` des `.env` une fois le registre de jetons en place : ces jetons partagés donnent tous les droits | H1 et H2 |
+| Changer dans Oracle les deux mots de passe exposés par un ancien commit : celui du compte d'administration et celui du compte applicatif `hopital1`. La purge de l'historique Git ne remplace pas cette rotation ; les anciens clones et caches peuvent conserver les valeurs. | H1 |
+| Vérifier sur chaque poste que `H1_API_TOKEN` et `H2_TOKEN` restent vides lorsque le registre de jetons est en place : ces anciens jetons partagés donnent toutes les portées du service. | H1 et H2 |
 
 Hors périmètre du prototype, listées dans la politique de sécurité :
 signature des Bundles, authentification mutuelle TLS, fournisseur d'identité

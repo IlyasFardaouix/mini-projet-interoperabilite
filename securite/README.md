@@ -17,33 +17,37 @@ que les règles soient identiques des deux côtés de l'échange et qu'il n'y ai
 
 À lancer depuis la **racine du dépôt**.
 
-```bash
+```powershell
 # 1. Jetons par client + registre + clés de service
-py securite/outils/generer_jetons.py
+.\.venv\Scripts\python.exe securite/outils/generer_jetons.py
 
 # 2. Autorité de certification interne + certificats des deux API
 #    Mettre l'adresse IP réelle du poste : 127.0.0.1 ne désigne que la machine
 #    qui exécute la commande, l'autre hôpital ne peut pas s'en servir.
-py securite/outils/generer_certificats.py --ip 192.168.1.20
+.\.venv\Scripts\python.exe securite/outils/generer_certificats.py --ip 192.168.1.20
 
-# 3. Recopier securite/jetons_locaux/env.jetons dans le .env de chaque service
+# 3. Recopier env.h1 dans hopital1/.env et env.h2 dans hopital2/.env
 
 # 4. Installer le garde-fou de commit (refuse de commiter un secret)
-py securite/outils/installer_hooks.py
+.\.venv\Scripts\python.exe securite/outils/installer_hooks.py
 
 # 5. Vérifier l'état de sécurité du dépôt
-py securite/outils/verifier_securite.py
+.\.venv\Scripts\python.exe securite/outils/verifier_securite.py
 ```
 
-Puis lancer les services en HTTPS :
+Puis lancer les services en HTTPS, chacun dans un terminal ouvert à la racine :
 
-```bash
-cd hopital1 && python -m uvicorn app:app --port 8000 \
-    --ssl-keyfile ../securite/certificats/h1.key.pem \
+```powershell
+Set-Location hopital1
+..\.venv\Scripts\python.exe -m uvicorn app:app --port 8000 `
+    --ssl-keyfile ../securite/certificats/h1.key.pem `
     --ssl-certfile ../securite/certificats/h1.cert.pem
+```
 
-cd hopital2 && python -m uvicorn api_h2:app --port 8002 \
-    --ssl-keyfile ../securite/certificats/h2.key.pem \
+```powershell
+Set-Location hopital2
+..\.venv\Scripts\python.exe -m uvicorn api_h2:app --port 8002 `
+    --ssl-keyfile ../securite/certificats/h2.key.pem `
     --ssl-certfile ../securite/certificats/h2.cert.pem
 ```
 
