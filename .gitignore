@@ -5,6 +5,7 @@
 !**/.env.sample
 !**/.env.template
 securite/registre_jetons.json
+securite/comptes/
 securite/jetons_locaux/
 securite/certificats/
 journaux/

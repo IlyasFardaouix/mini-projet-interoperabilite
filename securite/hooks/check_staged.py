@@ -21,7 +21,7 @@ def interdit(chemin: str) -> bool:
     if morceaux[0] == "archive":
         return True
     if any(p in {".venv", "venv", "__pycache__", ".pytest_cache",
-                 "jetons_locaux", "certificats", "journaux", "sortie", "output"}
+                 "jetons_locaux", "certificats", "comptes", "journaux", "sortie", "output"}
            for p in morceaux):
         return True
     if nom == "registre_jetons.json":

@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 RACINE = Path(__file__).resolve().parent.parent
 
@@ -42,6 +43,8 @@ DEFAUTS = {
     "SEC_VERROU_SECONDES": "300",
     "SEC_JWT_ISS": "interop-sante",
     "SEC_ROTATION_JOURS": "90",
+    "SEC_SESSION_DUREE": "900",              # jeton d'acces d'un utilisateur : 15 min
+    "SEC_SESSION_RENOUVELLEMENT": "28800",   # jeton de renouvellement : 8 h
 }
 
 
@@ -87,6 +90,13 @@ class Configuration:
     # configuration, lui, est fige au demarrage : les reglages de transport ne
     # doivent pas pouvoir changer en cours de route.
     variable_jeton: str = ""
+    # Sessions des utilisateurs (personnel de l'etablissement), voir utilisateurs.py.
+    # Secret propre a CE service : une session ouverte au CHU n'est pas valable a
+    # la clinique. Vide = connexion des utilisateurs desactivee.
+    session_secret: str = ""
+    utilisateurs: Optional[Path] = None      # comptes (hors depot Git)
+    session_duree: int = 900                 # jeton d'acces : 15 min
+    session_renouvellement: int = 28800      # jeton de renouvellement : 8 h (une garde)
 
     @property
     def jeton_historique(self) -> str:
@@ -135,4 +145,9 @@ def charger(service: str) -> Configuration:
         verrou_secondes=_entier("SEC_VERROU_SECONDES"),
         rotation_jours=_entier("SEC_ROTATION_JOURS"),
         variable_jeton=JETON_HISTORIQUE[service],
+        session_secret=(os.getenv("SEC_SESSION_SECRET") or "").strip(),
+        utilisateurs=Path(os.getenv("SEC_UTILISATEURS")
+                          or RACINE / "securite" / "comptes" / f"utilisateurs-{service.lower()}.json"),
+        session_duree=_entier("SEC_SESSION_DUREE"),
+        session_renouvellement=_entier("SEC_SESSION_RENOUVELLEMENT"),
     )

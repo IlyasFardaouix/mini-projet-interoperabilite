@@ -58,9 +58,11 @@ class Appelant:
     client: str
     portees: frozenset
     empreinte: str                      # 12 caracteres hex : trace le jeton sans le reveler
-    source: str                         # "registre" | "jwt" | "historique"
+    source: str                         # "registre" | "session" | "jwt" | "historique"
     expire_le: Optional[str] = None
     avertissements: tuple = field(default=())
+    utilisateur: Optional[str] = None   # login de la personne (source "session")
+    role: Optional[str] = None
 
     def autorise(self, portee: str) -> bool:
         if PORTEE_TOTALE in self.portees or portee in self.portees:
@@ -276,13 +278,17 @@ class Verificateur:
     """Transforme un en-tete Authorization en `Appelant`, ou leve `AccesRefuse`."""
 
     def __init__(self, conf: Configuration):
+        from .utilisateurs import Comptes, Sessions    # import differe : utilisateurs importe ce module
+
         self.conf = conf
         self.registre = Registre(conf.registre)
         self.compteur = CompteurEchecs(conf.echecs_max, conf.verrou_secondes)
+        self.sessions = Sessions(conf, Comptes(conf.utilisateurs))
 
     # -- configuration -----------------------------------------------------
     def configure(self) -> bool:
-        return bool(self.registre.entrees() or self.conf.jwt_secret or self.conf.jeton_historique)
+        return bool(self.registre.entrees() or self.conf.jwt_secret or self.conf.jeton_historique
+                    or (self.conf.session_secret and self.sessions.comptes.tous()))
 
     def diagnostic(self) -> list:
         """Anomalies de configuration, pour le journal de demarrage."""
@@ -353,6 +359,11 @@ class Verificateur:
                             empreinte=court, source="registre",
                             expire_le=entree.get("expire_le"), avertissements=avertissements)
 
+        if self.conf.session_secret and jeton.count(".") == 2:
+            charge = self.charge_de_session(jeton)
+            if charge is not None:
+                return self.sessions.appelant(charge, court)
+
         if self.conf.jwt_secret and jeton.count(".") == 2:
             try:
                 charge = verifier_jwt(jeton, self.conf.jwt_secret,
@@ -372,3 +383,19 @@ class Verificateur:
                             avertissements=("jeton partage sans portees : a remplacer par un jeton du registre",))
 
         raise AccesRefuse(401, "login", "Jeton Bearer absent ou invalide.", "jeton_invalide")
+
+    def charge_de_session(self, jeton: str) -> Optional[dict]:
+        """Charge d'un jeton de session de CE service, None s'il n'est pas signe
+        avec le secret de session (c'est alors peut-etre un JWT inter-hopitaux).
+        Un jeton de session expire ou destine a l'autre hopital donne 401."""
+        from .utilisateurs import audience_session
+
+        try:
+            return verifier_jwt(jeton, self.conf.session_secret, iss=self.conf.jwt_iss,
+                                aud=audience_session(self.conf))
+        except ValueError as exc:
+            if str(exc) in {"signature invalide", "en-tete JWT illisible",
+                            "algorithme refuse : seul HS256 est accepte", "type de jeton refuse"}:
+                return None
+            raise AccesRefuse(401, "login", "Session expiree : se reconnecter.",
+                              "session:" + str(exc)) from exc

@@ -52,6 +52,10 @@ services:
       SEC_JOURNAL: /app/journaux/securite-h2.jsonl
       SEC_SEL_AUDIT: ${SEC_SEL_AUDIT:?definir SEC_SEL_AUDIT dans .env (securite/jetons_locaux/env.h2)}
       SEC_JWT_SECRET: ${SEC_JWT_SECRET:-}
+      # Connexion du personnel : secret propre a H2 et comptes (dossier en ecriture :
+      # le changement de mot de passe reecrit le fichier).
+      SEC_SESSION_SECRET: ${SEC_SESSION_SECRET:-}
+      SEC_UTILISATEURS: /app/securite/comptes/utilisateurs-h2.json
       SEC_TAILLE_MAX_CORPS: ${SEC_TAILLE_MAX_CORPS:-5000000}
       SEC_DEBIT_PAR_MINUTE: ${SEC_DEBIT_PAR_MINUTE:-120}
       # Jeton partage historique : laisser vide des que le registre est en place.
@@ -64,6 +68,10 @@ services:
         target: /app/securite/registre_jetons.json
         read_only: true
         bind: {create_host_path: false}
+      - type: bind
+        source: ../securite/comptes
+        target: /app/securite/comptes
+        bind: {create_host_path: true}
       - type: bind
         source: ../securite/certificats/ac_interop.cert.pem
         target: /app/securite/certificats/ac_interop.cert.pem

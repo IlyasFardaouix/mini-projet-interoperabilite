@@ -310,6 +310,11 @@ def installer_securite(app, *, service: str, conf: Optional[Configuration] = Non
     app.add_exception_handler(AccesRefuse, refus)
     app.add_middleware(MiddlewareSecurite, etat=etat)
 
+    # Connexion du personnel (/auth/...) : memes routes sur les deux hopitaux.
+    from .routes_auth import routeur_authentification
+
+    app.include_router(routeur_authentification())
+
     anomalies = etat.demarrage()
     for anomalie in anomalies:
         print("[securite " + etat.conf.service + "] ATTENTION : " + anomalie)

@@ -32,6 +32,10 @@ Le reste de ce document liste les variables à ajouter aux deux `.env`.
 | `H1_API_TOKEN` | *(vide)* | Jeton partagé historique de H1. Accepté mais donne **toutes** les portées du service. À vider dès que le registre est en place. |
 | `H2_TOKEN` | *(vide)* | Idem pour H2. |
 | `SEC_JWT_SECRET` | *(vide)* | Clé HS256 des jetons JWT à durée de vie courte. Vide = JWT désactivé. |
+| `SEC_SESSION_SECRET` | *(vide)* | Clé HS256 des sessions du personnel, propre à chaque hôpital. Vide = connexion `/auth` désactivée (503). Voir `authentification.md`. |
+| `SEC_UTILISATEURS` | `securite/comptes/utilisateurs-<service>.json` | Fichier des comptes du personnel (hors Git). |
+| `SEC_SESSION_DUREE` | `900` | Durée du jeton d'accès d'une session, en secondes. |
+| `SEC_SESSION_RENOUVELLEMENT` | `28800` | Durée du jeton de renouvellement, en secondes. |
 | `SEC_JWT_ISS` | `interop-sante` | Émetteur attendu dans le `iss` du JWT. |
 | `SEC_JWT_AUD` | nom du service (`H1` / `H2`) | Destinataire attendu dans le `aud` du JWT. |
 | `SEC_ROTATION_JOURS` | `90` | Durée de validité par défaut des jetons générés. |

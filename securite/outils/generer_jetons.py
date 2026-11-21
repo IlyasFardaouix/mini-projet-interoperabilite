@@ -182,6 +182,8 @@ def main(argv=None) -> int:
                 "# A RECOPIER uniquement dans hopital" + service[-1] + "/.env, JAMAIS dans Git.",
                 "SEC_SEL_AUDIT=" + secrets.token_urlsafe(32),
                 "SEC_JWT_SECRET=" + secrets.token_urlsafe(48),
+                # Sessions du personnel : secret propre a ce service, jamais partage.
+                "SEC_SESSION_SECRET=" + secrets.token_urlsafe(48),
             ]))
             print("  + valeurs de service -> " + str(env))
 

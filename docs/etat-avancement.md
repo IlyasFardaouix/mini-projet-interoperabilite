@@ -147,10 +147,24 @@ Détail et contrat des routes : [`securite/consentement.md`](securite/consenteme
   avant la reprise.
 - Migration Oracle : `hopital1/schema_consentement_h1.sql`.
 
+### Authentification du personnel
+
+Comptes nominatifs pour l'interface, sur les deux API. Détail et contrat :
+[`securite/authentification.md`](securite/authentification.md).
+
+- Rôles `medecin`, `accueil`, `dpo`, traduits en portées existantes.
+- Mots de passe hachés (scrypt), mot de passe provisoire à changer à la première
+  connexion, verrouillage par compte et par adresse.
+- Jeton d'accès de 15 min, jeton de renouvellement de 8 h à usage unique
+  (rejeu détecté), déconnexion et désactivation immédiates.
+- Le nom de la personne figure dans le journal d'accès et dans les journaux métier.
+- Comptes gérés en ligne de commande : `securite/outils/gerer_utilisateurs.py`.
+
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
+| Sur chaque poste : relancer `generer_jetons.py --forcer` ou ajouter `SEC_SESSION_SECRET` au `.env`, puis créer les comptes du personnel avec `gerer_utilisateurs.py`. | H1 et H2 |
 | Exécuter `hopital1/schema_consentement_h1.sql` sur la base Oracle du CHU, puis tester les routes de consentement contre Oracle (les tests H1 simulent la base). | H1 |
 | Régénérer `hopital1/exemples/aller_youssef_S1.json` : l'exemple ne contient pas encore la ressource `Consent`. | H1 |
 | Un Bundle d'aller produit par H1 passe le contrôle de consentement de H2 mais est refusé en `422` : H2 ne résout pas les références `urn:uuid:` des séjours (« encounter introuvable »). Écart d'adaptateurs, indépendant du consentement. | H1 + H2 |

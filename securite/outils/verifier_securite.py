@@ -1268,7 +1268,10 @@ def controle_securite_non_branchee(contexte) -> list:
 # SEC-016  Route FastAPI sans protection                                 (P1)
 # ---------------------------------------------------------------------------
 
-CHEMINS_PUBLICS = ("/health", "/metadata", "/docs", "/redoc", "/openapi.json")
+# /auth/connexion et /auth/renouvellement : points d'entree de la session du
+# personnel, sans jeton par construction ; proteges par le debit et le verrouillage.
+CHEMINS_PUBLICS = ("/health", "/metadata", "/docs", "/redoc", "/openapi.json",
+                   "/auth/connexion", "/auth/renouvellement")
 _MOTIF_ROUTE = re.compile(
     r"^\s*@(?P<objet>\w+)\.(?P<verbe>get|post|put|delete|patch)\s*\(")
 _MOTIF_CHEMIN_ROUTE = re.compile(r"[\"'](?P<route>/[^\"']*)[\"']")

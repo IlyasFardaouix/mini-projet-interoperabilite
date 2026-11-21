@@ -45,7 +45,9 @@ ENTETES_INTERDITES = {"authorization", "proxy-authorization", "cookie", "set-coo
 # clair que les segments statiques des routes publiees par les deux API.
 SEGMENTS_PUBLICS = {"api", "patients", "Patient", "bundle", "retours",
                     "simulation", "health", "metadata", "docs", "redoc",
-                    "openapi.json", "$everything"}
+                    "openapi.json", "$everything", "consentement", "retrait",
+                    "auth", "connexion", "renouvellement", "deconnexion", "moi",
+                    "mot-de-passe"}
 
 TAILLE_ROTATION = 5 * 1024 * 1024          # 5 Mo : au-dela, le fichier est archive
 

@@ -209,6 +209,8 @@ prototype, documentée dans la politique de sécurité.
 | `debit.py`                     | Limitation de débit (seau à jetons)                        |
 | `intergiciels.py`              | Intergiciel ASGI, `installer_securite`, `exiger_portee`    |
 | `client.py`                    | Client httpx durci pour appeler l'autre hôpital            |
+| `utilisateurs.py`, `routes_auth.py` | Comptes du personnel, sessions et routes `/auth` — voir [`docs/securite/authentification.md`](../docs/securite/authentification.md) |
+| `outils/gerer_utilisateurs.py` | Crée, désactive, réinitialise les comptes du personnel     |
 | `consentement.py`              | Règles du consentement (loi 09-08), `Consent` FHIR R5, filtrage du Bundle — voir [`docs/securite/consentement.md`](../docs/securite/consentement.md) |
 | `tls.py`                       | Autorité de certification interne et certificats ECDSA     |
 | `outils/generer_jetons.py`     | Génère les jetons et le registre                           |

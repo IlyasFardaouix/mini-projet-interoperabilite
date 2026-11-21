@@ -5,6 +5,7 @@
 **/*.p12
 **/*.pfx
 **/registre_jetons.json
+**/comptes/
 **/jetons_locaux/
 **/certificats/
 **/journaux/

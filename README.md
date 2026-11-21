@@ -108,6 +108,7 @@ Set-Location hopital2
 | Recevoir | `POST /api/retours` | `POST /api/retours`, `POST /Bundle` |
 | Consentement : état et historique | `GET /api/patients/{ipp}/consentement` | `GET /api/patients/{id}/consentement` |
 | Consentement : recueil / retrait | `POST /api/patients/{ipp}/consentement[/retrait]` | `POST /api/patients/{id}/consentement[/retrait]` |
+| Connexion du personnel | `POST /auth/connexion`, `/auth/renouvellement`, `/auth/deconnexion`, `GET /auth/moi` | idem |
 | Documentation | `GET /docs` | `GET /docs` |
 
 En-têtes : `Authorization: Bearer <jeton>`, `Accept: application/fhir+json`,
@@ -140,6 +141,8 @@ Toutes les routes de dossier exigent un jeton **et** la portée correspondante
 répond `503` : il ne s'ouvre jamais.
 
 - [`SECURITY.md`](SECURITY.md) — périmètre et signalement
+- [`docs/securite/authentification.md`](docs/securite/authentification.md) — comptes du personnel, rôles et sessions (`/auth/...`)
+- [`docs/securite/consentement.md`](docs/securite/consentement.md) — consentement au partage (loi 09-08)
 - [`securite/README.md`](securite/README.md) — mode d'emploi de la couche
 - [`docs/securite/politique-securite.md`](docs/securite/politique-securite.md) — politique, menaces, matrice des droits
 - [`docs/securite/procedure-secrets.md`](docs/securite/procedure-secrets.md) — jetons et mots de passe
