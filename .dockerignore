@@ -1,0 +1,24 @@
+# Le contexte de construction ne doit pas transporter de secrets vers Docker.
+**/.env
+**/.env.*
+**/*.pem
+**/*.p12
+**/*.pfx
+**/registre_jetons.json
+**/jetons_locaux/
+**/certificats/
+**/journaux/
+**/sortie/
+**/output/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.sqlite*
+**/*.db
+archive/
+.git/
+securite/tests/
+securite/outils/
+securite/hooks/
+securite/README.md

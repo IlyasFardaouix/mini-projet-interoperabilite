@@ -1,0 +1,10 @@
+{
+  "resourceType": "OperationOutcome",
+  "issue": [
+    {
+      "severity": "error",
+      "code": "forbidden",
+      "diagnostics": "Transfert refusé : consentement « refused » (loi 09-08)."
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+# MongoDB (base « hopital2 ») + API H2 de la Clinique Al Bacar.
+#
+# Choix de securite appliques ici :
+#   - MongoDB demarre AVEC authentification (MONGO_INITDB_ROOT_*). Sans elle,
+#     toute personne joignant le port lit et modifie les dossiers patients.
+#   - Le port de MongoDB n'est publie que sur 127.0.0.1 : la base est joignable
+#     depuis le poste, jamais depuis le reseau local.
+#   - L'API tourne sous un utilisateur sans privilege (voir Dockerfile).
+#   - L'API est servie en HTTPS, avec les certificats montes en lecture seule.
+#   - Aucun secret n'est ecrit dans ce fichier : tout vient du .env local.
+#
+# Mise en route :
+#   1) cp .env.example .env   puis renseigner MONGO_UTILISATEUR,
+#      MONGO_MOT_DE_PASSE et SEC_SEL_AUDIT
+#   2) py ../securite/outils/generer_jetons.py
+#   3) py ../securite/outils/generer_certificats.py --ip <adresse du poste>
+#   4) docker compose up -d mongo
+#   5) python charger_mongo.py hopital2_mongodb_v3.js
+#   6) docker compose up -d api        puis https://127.0.0.1:8002/docs
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # Lie a la boucle locale : accessible depuis le poste, pas depuis le reseau.
+    ports: ["127.0.0.1:27017:27017"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_UTILISATEUR:?definir MONGO_UTILISATEUR dans .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_MOT_DE_PASSE:?definir MONGO_MOT_DE_PASSE dans .env}
+    volumes: ["mongo_data:/data/db"]
+
+  api:
+    # Le contexte est la racine du depot : l'image embarque aussi securite/.
+    build:
+      context: ..
+      dockerfile: hopital2/Dockerfile
+    restart: unless-stopped
+    ports: ["8002:8002"]
+    environment:
+      MONGO_URI: mongodb://${MONGO_UTILISATEUR}:${MONGO_MOT_DE_PASSE}@mongo:27017/?authSource=admin
+      MONGO_DB: ${MONGO_DB:-hopital2}
+      FHIR_BASE_URL: ${FHIR_BASE_URL:-https://127.0.0.1:8002/fhir}
+      H1_IPP_SYSTEM: ${H1_IPP_SYSTEM:-https://chu-almassira.ma/ipp}
+      # --- securite ---
+      SEC_MODE: ${SEC_MODE:-strict}
+      SEC_TLS_REQUIS: ${SEC_TLS_REQUIS:-1}
+      SEC_REGISTRE: /app/securite/registre_jetons.json
+      SEC_JOURNAL: /app/journaux/securite-h2.jsonl
+      SEC_SEL_AUDIT: ${SEC_SEL_AUDIT:?definir SEC_SEL_AUDIT dans .env (securite/jetons_locaux/env.jetons)}
+      SEC_JWT_SECRET: ${SEC_JWT_SECRET:-}
+      SEC_TAILLE_MAX_CORPS: ${SEC_TAILLE_MAX_CORPS:-5000000}
+      SEC_DEBIT_PAR_MINUTE: ${SEC_DEBIT_PAR_MINUTE:-120}
+      # Jeton partage historique : laisser vide des que le registre est en place.
+      H2_TOKEN: ${H2_TOKEN:-}
+    volumes:
+      # Certificats et registre de jetons : fournis par le poste, en lecture
+      # seule, et jamais inclus dans l'image publiee.
+      - ../securite:/app/securite:ro
+      - journaux:/app/journaux
+    command: >
+      uvicorn api_h2:app --host 0.0.0.0 --port 8002
+      --ssl-keyfile /app/securite/certificats/h2.key.pem
+      --ssl-certfile /app/securite/certificats/h2.cert.pem
+    # Sans TLS (poste de test isole UNIQUEMENT) : commenter le bloc command
+    # ci-dessus et lancer avec SEC_MODE=local SEC_TLS_REQUIS=0 dans le .env.
+    depends_on: [mongo]
+
+volumes:
+  mongo_data:
+  journaux:
