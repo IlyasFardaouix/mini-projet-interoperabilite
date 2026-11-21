@@ -102,6 +102,8 @@ def generer_autorite(dossier: Path, *, nom: str = NOM_AC, jours: int = JOURS_AC,
             crl_sign=True, encipher_only=False, decipher_only=False), critical=True)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(cle.public_key()),
                        critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(cle.public_key()),
+                       critical=False)
         .sign(cle, hashes.SHA256())
     )
     _ecrire_cle(chemin_cle, cle)
@@ -159,6 +161,10 @@ def generer_certificat_serveur(dossier: Path, prefixe: str, *,
         .not_valid_before(maintenant - datetime.timedelta(minutes=5))
         .not_valid_after(maintenant + datetime.timedelta(days=jours))
         .add_extension(x509.SubjectAlternativeName(autres_noms), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(cle.public_key()),
+                       critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ac_cle.public_key()),
+                       critical=False)
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(x509.KeyUsage(
             digital_signature=True, content_commitment=False, key_encipherment=False,

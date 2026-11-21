@@ -129,7 +129,7 @@ Points d'attention :
 Vérification locale immédiate, sur le poste lui-même :
 
 ```powershell
-curl.exe --cacert .\securite\certificats\ac_interop.cert.pem https://localhost:8000/health
+curl.exe --ssl-no-revoke --cacert .\securite\certificats\ac_interop.cert.pem https://localhost:8000/health
 ```
 
 ---
@@ -248,10 +248,16 @@ prévoir cette opération avant la démonstration, pas pendant.
 Sous PowerShell, `curl` est un alias de `Invoke-WebRequest` : il faut écrire
 **`curl.exe`** pour utiliser le vrai client.
 
+Sur Windows avec Schannel, l'autorité interne de ce prototype ne publie pas de
+service de révocation. Si `curl.exe` refuse le certificat faute d'information de
+révocation, utiliser `--ssl-no-revoke` comme ci-dessous. Garder `--cacert` :
+la chaîne de confiance et le nom du serveur restent vérifiés. Cette option
+désactive seulement le contrôle de révocation pour ce test avec l'AC interne.
+
 Étape 1 — la route libre, depuis l'autre poste :
 
 ```powershell
-curl.exe --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
+curl.exe --ssl-no-revoke --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
 ```
 
 Réponse attendue : `{"status":"ok","service":"H1","fhirVersion":"5.0.0"}`.
@@ -260,7 +266,7 @@ Réponse attendue : `{"status":"ok","service":"H1","fhirVersion":"5.0.0"}`.
 l'écran) :
 
 ```powershell
-curl.exe --cacert .\securite\certificats\ac_interop.cert.pem -H "Authorization: Bearer $env:H1_API_TOKEN" https://192.168.1.20:8000/api/patients/P1-0106/bundle
+curl.exe --ssl-no-revoke --cacert .\securite\certificats\ac_interop.cert.pem -H "Authorization: Bearer $env:H1_API_TOKEN" https://192.168.1.20:8000/api/patients/P1-0106/bundle
 ```
 
 Étape 3 — contrôler que le refus du trafic en clair fonctionne. L'appel suivant doit
@@ -273,7 +279,7 @@ curl.exe http://192.168.1.20:8000/api/patients/P1-0106/bundle
 Étape 4 — vérifier les en-têtes de sécurité et le code de retour :
 
 ```powershell
-curl.exe -i --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
+curl.exe -i --ssl-no-revoke --cacert .\securite\certificats\ac_interop.cert.pem https://192.168.1.20:8000/health
 ```
 
 `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy` et
@@ -290,6 +296,7 @@ l'appel passe, c'est le certificat ou `SEC_CA` qu'il faut corriger.
 
 | Message | Cause | Correction |
 |---|---|---|
+| Schannel : contrôle de révocation impossible | l'AC interne du prototype ne publie ni liste de révocation ni service OCSP | pour le test Windows, ajouter `--ssl-no-revoke` à `curl.exe` tout en conservant `--cacert` |
 | `certificate verify failed: unable to get local issuer certificate` | le client ne connaît pas l'autorité interne : `SEC_CA` absent, mal orthographié, ou `--cacert` oublié | renseigner `SEC_CA` avec le chemin **absolu** du certificat racine reçu (chapitre 6) |
 | `certificate verify failed: Hostname mismatch` ou `IP address mismatch` | l'adresse de l'URL ne figure pas dans le SAN du certificat : certificat généré pour `localhost` seulement | regénérer avec `--ip` et `--dns`, puis `--forcer` (chapitre 7) |
 | `certificate verify failed: certificate has expired` | certificat serveur de plus d'un an, ou horloge du poste fausse | vérifier la date du poste, puis `py securite\outils\generer_certificats.py --forcer` |
@@ -361,5 +368,5 @@ pouvoir se propager en configuration de démonstration.
 | Voir échéances et noms couverts | `py securite\outils\generer_certificats.py --decrire` |
 | Lancer H1 en HTTPS | `py -m uvicorn app:app --host 0.0.0.0 --port 8000 --ssl-keyfile ..\securite\certificats\h1.key.pem --ssl-certfile ..\securite\certificats\h1.cert.pem` |
 | Lancer H2 en HTTPS | `py -m uvicorn api_h2:app --host 0.0.0.0 --port 8002 --ssl-keyfile ..\securite\certificats\h2.key.pem --ssl-certfile ..\securite\certificats\h2.cert.pem` |
-| Tester une route libre | `curl.exe --cacert <racine> https://<adresse>:8000/health` |
+| Tester une route libre sous Windows | `curl.exe --ssl-no-revoke --cacert <racine> https://<adresse>:8000/health` |
 | Inspecter un certificat reçu | `py -c "from securite.tls import decrire; print(decrire('securite/certificats/ac_interop.cert.pem'))"` |

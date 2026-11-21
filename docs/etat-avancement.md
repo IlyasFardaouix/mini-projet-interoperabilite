@@ -67,12 +67,15 @@ même temps.
 - `Dockerfile` et `docker-compose.yml`, 60 patients de démonstration, exemples
   de Bundles aller et retour.
 - Tests de l'API et du client d'envoi.
+- Démarrage local de H2 et d'un vrai MongoDB avec Docker Compose ; `/health`
+  répond `200` en HTTPS, 60 patients fictifs ont été chargés, et un appel
+  authentifié à `GET /Patient` a confirmé `total=60` (sans jeton : `401`).
 
 ### Reste à faire
 
 | À faire | Pour qui |
 | --- | --- |
-| Tester avec un **vrai** MongoDB : la suite tourne sur `mongomock` | H2 |
+| Tester l'export et l'import de dossiers avec le vrai MongoDB : les tests fonctionnels automatisés emploient `mongomock` ; le test Compose local a validé la connexion, le chargement et la lecture des 60 patients | H2 |
 | Passer les exemples au validateur HL7 officiel | H2 |
 | Verrou optimiste : aujourd'hui « dernier écrit gagne » en cas d'écriture simultanée | H2 |
 | Vérifier que `data/patients_h2.json` et `exemples/` ne contiennent aucune donnée réelle (ce dépôt est public) | H2 |

@@ -90,13 +90,18 @@ l'orchestration réelle entre les deux API reste à intégrer.
 
 ## Ce qui est vérifié, et ce qui ne l'est pas
 
-Vérifié : 147 tests (API sur base mémoire **et** MongoDB simulé, client d'envoi contre une fausse API H1) ; les 60 patients
-s'exportent en FHIR R5 valide (`fhir.resources`) et reviennent en base en mode strict ; des tests échouent bien quand on
-désactive l'anti-boucle ou qu'on autorise l'écrasement.
+Vérifié : 147 tests (API sur base mémoire **et** MongoDB simulé, client d'envoi
+contre une fausse API H1) ; les 60 patients s'exportent en FHIR R5 valide
+(`fhir.resources`) et reviennent en base en mode strict ; des tests échouent
+bien quand on désactive l'anti-boucle ou qu'on autorise l'écrasement. En plus,
+H2 a démarré localement avec un vrai MongoDB dans Docker Compose : `/health`
+a répondu `200` en HTTPS, 60 patients fictifs ont été chargés, et un appel
+authentifié à `GET /Patient` a confirmé `total=60` (sans jeton : `401`).
 
-**Non vérifié** : MongoDB réel (mongomock seulement — à essayer avec `docker compose`), validateur HL7 officiel
-(seulement `fhir.resources`), échange HTTPS de bout en bout avec la vraie API H1, accès simultanés au même patient (dernier écrit gagne, pas de
-verrou optimiste).
+**Non vérifié** : export et import de dossiers contre le vrai MongoDB ;
+validateur HL7 officiel (seulement `fhir.resources`) ; échange HTTPS
+de bout en bout avec H1 et sa base Oracle, notamment entre deux machines ;
+accès simultanés au même patient (dernier écrit gagne, pas de verrou optimiste).
 
 ## Écarts constatés dans les fichiers fournis
 
