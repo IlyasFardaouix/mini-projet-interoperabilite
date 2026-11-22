@@ -149,3 +149,38 @@ def test_passerelle_chu_anti_boucle(chu, monkeypatch):
     with pytest.raises(api.AccesRefuse) as e:
         api.autoriser_imagerie(appelant, UID)
     assert e.value.http == 403
+
+
+# ── récupération automatique après un retour ─────────────────────────────────
+from recuperer_imagerie import recuperer_apres_retour  # noqa: E402
+
+
+def test_apres_retour_images_suivent_le_dossier(monkeypatch):
+    monkeypatch.setenv("DEMO", "1")
+    monkeypatch.setenv("H2_DICOMWEB_URL", BASE_H2)
+    conn, pacs = FausseConnexion([ligne()]), EntrepotMemoire()
+    bilan = recuperer_apres_retour(conn, "P1-0106", client=clinique({UID: etude()}), pacs=pacs)
+    assert bilan == [{"study_uid": UID, "statut": "RECUPEREE", "instances": 2}]
+    assert len(pacs.etude(UID)) == 2
+    assert any("ipp" in str(p) and p.get("ipp") == "P1-0106" for s, p in conn.requetes if s.startswith("SELECT id_etude"))
+
+
+def test_apres_retour_desactive_par_defaut(monkeypatch):
+    monkeypatch.delenv("DEMO", raising=False)
+    monkeypatch.delenv("H1_IMAGERIE_AUTO", raising=False)
+    client = clinique({UID: etude()})
+    assert recuperer_apres_retour(FausseConnexion([ligne()]), "P1-0106", client=client, pacs=EntrepotMemoire()) is None
+    assert client.appels == []
+
+
+def test_apres_retour_non_configure(monkeypatch):
+    monkeypatch.setenv("H1_IMAGERIE_AUTO", "1")
+    monkeypatch.delenv("H2_DICOMWEB_URL", raising=False)
+    assert recuperer_apres_retour(FausseConnexion([ligne()]), "P1-0106", pacs=EntrepotMemoire()) is None
+
+
+def test_apres_retour_une_panne_n_annule_pas_l_import(monkeypatch):
+    monkeypatch.setenv("DEMO", "1")
+    monkeypatch.setenv("H2_DICOMWEB_URL", BASE_H2)
+    bilan = recuperer_apres_retour(FausseConnexion([ligne()]), "P1-0106", client=object(), pacs=EntrepotMemoire())
+    assert bilan and bilan[0]["statut"] == "EN_ATTENTE"

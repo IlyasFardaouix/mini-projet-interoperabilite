@@ -133,3 +133,21 @@ Le consentement et le droit d'accès réutilisent les routes existantes
   une vraie base.
 - Pas de double authentification, pas de saisie ni de modification du dossier médical depuis la page.
 - Les heures du journal sont en UTC.
+
+
+## Images DICOM avec l'envoi
+
+Quand le CHU reçoit un dossier de la clinique (`POST /api/retours`), il récupère tout de suite les images
+des examens annoncés (`recuperer_imagerie.recuperer_apres_retour`), avec `DEMO=1` ou `H1_IMAGERIE_AUTO=1`.
+La réponse du retour contient `imagerie` (un bilan par examen : `RECUPEREE`, `REFUSEE`, `EN_ATTENTE`...,
+`null` si la fonction est inactive) et l'écran de l'expéditeur l'affiche dans la 5e étape « Images DICOM ».
+Un échec d'image n'annule jamais l'import du dossier. 
+
+### Aperçu des images
+
+La fiche d'un patient contient une section « Imagerie DICOM » : un bloc par examen, avec une vignette par image
+(clic pour agrandir). `GET /api/demo/image/{patient}/{study_uid}/{rang}` lit l'image dans le PACS local (Orthanc de
+l'hôpital), la convertit en PNG (`imagerie/apercu.py`, sans bibliothèque d'images) et ne renvoie que les pixels :
+aucune étiquette DICOM, donc ni nom ni date de naissance. Le serveur vérifie que l'étude appartient bien au patient
+demandé ; au CHU, seules les études `RECUPEREE` s'affichent. Formats lus : pixels non compressés, 8 bits (gris ou RVB)
+ou 16 bits (gris). Une image compressée ou illisible affiche « Aperçu indisponible ».

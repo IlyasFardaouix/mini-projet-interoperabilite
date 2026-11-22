@@ -46,6 +46,7 @@ if str(_RACINE) not in sys.path:
 from securite import AccesRefuse, exiger_portee, installer_securite, lire_json_securise, tracer  # noqa: E402
 from imagerie.dicomweb import entrepot_depuis_env  # noqa: E402
 from imagerie.passerelle import routeur_dicomweb  # noqa: E402
+from recuperer_imagerie import recuperer_apres_retour  # noqa: E402
 
 
 ECHANGE_ID = re.compile(r"[A-Za-z0-9._:-]{1,64}")
@@ -390,6 +391,8 @@ metier met a jour les memes lignes par MERGE. Reponse : rapport JSON applicatif.
         with repo.connexion() as conn:
             ipp, resultat = repo.recevoir_retour(conn, bundle, patient, echange_id=echange_id,
                                                  creer_si_inconnu=creation_autorisee(), consentement_joint=joint)
+            # Les images suivent le dossier : l'import est deja valide, un echec ici n'annule rien.
+            imagerie = recuperer_apres_retour(conn, ipp)
     except aller.ConsentementRefuse as exc:
         return erreur(403, "forbidden", str(exc))
     except repo.IdentiteAmbigue as exc:
@@ -413,6 +416,7 @@ metier met a jour les memes lignes par MERGE. Reponse : rapport JSON applicatif.
             "alertes": alertes_consentement + resultat["alertes"],
             "ignores": resultat["ignores"],
             "echange_id": echange_id,
+            "imagerie": imagerie,
         },
         headers={"Cache-Control": "no-store",
                  **({"X-Exchange-Id": echange_id} if echange_id else {})},

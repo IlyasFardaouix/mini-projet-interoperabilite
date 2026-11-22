@@ -157,13 +157,22 @@ def test_demo_retrait_apres_accord(demo):
 def test_demo_etapes_deduites_du_resultat_reel():
     from interface.demo import etapes_envoi
     bloque, v = etapes_envoi({"statut": "bloque", "http": 403, "detail": "x"}, {"motif": "refus"}, "CHU")
-    assert [x["etat"] for x in bloque] == ["echec", "saute", "saute", "saute"] and v["etat"] == "bloque"
+    assert [x["etat"] for x in bloque] == ["echec", "saute", "saute", "saute", "saute"] and v["etat"] == "bloque"
     ok, v = etapes_envoi({"statut": "envoye", "http": 201}, {}, "CHU")
-    assert [x["etat"] for x in ok] == ["ok"] * 4 and v["etat"] == "ok"
+    assert [x["etat"] for x in ok] == ["ok"] * 5 and v["etat"] == "ok" and ok[4]["texte"] == "Aucune image transférée avec cet envoi."
+    vide, _ = etapes_envoi({"statut": "envoye", "http": 201, "imagerie": []}, {}, "CHU")
+    assert vide[4]["texte"] == "Aucune image dans ce dossier."
+    img, _ = etapes_envoi({"statut": "envoye", "http": 201,
+                           "imagerie": [{"statut": "RECUPEREE", "instances": 2}, {"statut": "RECUPEREE", "instances": 3}]}, {}, "CHU")
+    assert img[4]["etat"] == "ok" and "2 examen(s) transféré(s), 5 image(s)" in img[4]["texte"]
+    refus, _ = etapes_envoi({"statut": "envoye", "http": 201, "imagerie": [{"statut": "REFUSEE"}]}, {}, "CHU")
+    assert refus[4]["etat"] == "echec" and "imagerie exclue" in refus[4]["texte"]
+    patiente, _ = etapes_envoi({"statut": "envoye", "http": 201, "imagerie": [{"statut": "EN_ATTENTE"}]}, {}, "CHU")
+    assert patiente[4]["etat"] == "attente"
     att, v = etapes_envoi({"statut": "en_attente", "http": None, "detail": "injoignable"}, {}, "CHU")
-    assert [x["etat"] for x in att] == ["ok", "ok", "attente", "attente"] and v["etat"] == "attente"
+    assert [x["etat"] for x in att] == ["ok", "ok", "attente", "attente", "saute"] and v["etat"] == "attente"
     ref, v = etapes_envoi({"statut": "refuse_simulation", "http": 422, "detail": "d"}, {}, "CHU")
-    assert [x["etat"] for x in ref] == ["ok", "ok", "echec", "saute"] and v["etat"] == "echec"
+    assert [x["etat"] for x in ref] == ["ok", "ok", "echec", "saute", "saute"] and v["etat"] == "echec"
     inconnu, v = etapes_envoi({"statut": "refuse_simulation", "http": 404,
                                "detail": "not-found: Patient introuvable dans H1."}, {}, "CHU")
     assert "inconnu" in v["titre"] and "rien n'est transféré" in v["titre"] and inconnu[3]["etat"] == "saute"
@@ -216,3 +225,54 @@ def test_demo_detail_envoyes_et_recus(demo, monkeypatch):
 def test_les_noms_de_famille_des_patients_de_h2_sont_tous_differents():
     noms = [d["last_name"] for d in DOCS]
     assert len(noms) == len(set(noms)) == 60
+
+
+# ── aperçu des images DICOM ──────────────────────────────────────────────────
+UID_ETUDE = "2.25.11060236952204337488"        # étude de P2-0051 dans les données de démonstration
+
+
+@pytest.fixture
+def pacs(monkeypatch):
+    from datetime import datetime
+    import ui_h2
+    from imagerie.dicom import generer_etude, vers_octets
+    from imagerie.dicomweb import EntrepotMemoire
+    memoire = EntrepotMemoire()
+    memoire.stocker([vers_octets(ds) for ds in generer_etude(
+        {"id": "P2-0051", "nom": "Alaoui", "prenom": "Youssef", "naissance": "1968-04-12", "sexe": "M"},
+        {"study_uid": UID_ETUDE, "instances": 2, "date": datetime(2026, 9, 20)}, etablissement="Clinique")])
+    monkeypatch.setattr(ui_h2.AdaptateurH2, "_pacs", lambda self: memoire)
+    return memoire
+
+
+def test_demo_fiche_liste_les_examens_d_imagerie(demo):
+    dossier = demo.get("/api/demo/patient/P2-0051").json()["dossier"]
+    assert any(x["study_uid"] == UID_ETUDE and x["pret"] and x["instances"] == 2 for x in dossier["imagerie"])
+
+
+def test_demo_apercu_png_d_une_image(demo, pacs):
+    r = demo.get(f"/api/demo/image/P2-0051/{UID_ETUDE}/1")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png" and r.content.startswith(b"\x89PNG")
+    for secret in (b"ALAOUI", b"Alaoui", b"Youssef", b"P2-0051"):
+        assert secret not in r.content
+
+
+def test_demo_apercu_refuse_une_etude_d_un_autre_patient_ou_inconnue(demo, pacs):
+    autre = demo.get("/api/demo/patients").json()["patients"]
+    autre_id = next(p["id"] for p in autre if p["id"] != "P2-0051")
+    assert demo.get(f"/api/demo/image/{autre_id}/{UID_ETUDE}/0").status_code == 404      # pas son étude
+    assert demo.get("/api/demo/image/P2-0051/2.25.999/0").status_code == 404
+    assert demo.get(f"/api/demo/image/P2-0051/{UID_ETUDE}/7").status_code == 404         # rang hors étude
+    assert demo.get("/api/demo/image/P2-0051/abc..%3Cscript%3E/0").status_code == 422
+    assert demo.get(f"/api/demo/image/P2-0051/{UID_ETUDE}/500").status_code == 422
+
+
+def test_demo_apercu_sans_pacs_repond_503_pas_500(demo, monkeypatch):
+    import ui_h2
+    monkeypatch.setattr(ui_h2.AdaptateurH2, "_pacs", lambda self: None)
+    assert demo.get(f"/api/demo/image/P2-0051/{UID_ETUDE}/0").status_code == 503
+
+
+def test_demo_apercu_desactive_sans_demo(monkeypatch):
+    monkeypatch.delenv("DEMO", raising=False)
+    assert TestClient(api_h2.app).get(f"/api/demo/image/P2-0051/{UID_ETUDE}/0").status_code == 404

@@ -91,10 +91,39 @@ class AdaptateurH2:
                            + [{"libelle": s.get("code_label"), "detail": "demande : " + str(s.get("status"))}
                               for s in v.get("service_requests", [])],
             })
-        return {"service": "H2", "patient": res,
+        imagerie = [{"study_uid": i.get("study_uid"), "description": i.get("description"),
+                     "modalite": i.get("modality"), "instances": i.get("instances"), "statut": "disponible", "pret": True}
+                    for v in doc.get("visits", []) for i in v.get("imaging", []) if i.get("study_uid")]
+        return {"service": "H2", "patient": res, "imagerie": imagerie,
                 "allergies": [{"libelle": a.get("substance"), "detail": a.get("reaction"),
                                "gravite": a.get("criticite")} for a in doc.get("allergies", [])],
                 "sejours": sejours, "recu_de_l_autre_hopital": {}}
+
+    def _pacs(self):
+        from imagerie.dicomweb import entrepot_depuis_env
+        return entrepot_depuis_env("H2")
+
+    def image_dicom(self, identifiant, study_uid, rang):
+        """Octets DICOM de la `rang`-ieme image d'une etude de CE patient, lue dans le PACS de la clinique."""
+        try:
+            doc = echange.trouver_patient(self._store(), identifiant)
+        except echange.ErreurEchange as exc:
+            raise LookupError(identifiant) from exc
+        except StoreIndisponible as exc:
+            raise ErreurInterface(503, "Base indisponible.", "transient") from exc
+        if not any(i.get("study_uid") == study_uid for v in doc.get("visits", []) for i in v.get("imaging", [])):
+            raise LookupError(study_uid)
+        from imagerie.dicomweb import ErreurPacs
+        pacs = self._pacs()
+        if pacs is None:
+            raise ErreurInterface(503, "PACS non configure (H2_ORTHANC_URL).", "transient")
+        try:
+            instances = pacs.etude(study_uid)
+        except ErreurPacs as exc:
+            raise ErreurInterface(503, str(exc), "transient") from exc
+        if not instances or not 0 <= rang < len(instances):
+            raise LookupError(study_uid)
+        return instances[rang]
 
     # -- envoi vers le CHU -----------------------------------------------------------------
     def _file(self):

@@ -217,7 +217,7 @@ def test_demo_h1_consentement_et_envoi_sans_compte(interface_h1, monkeypatch):
     assert sans_jeton.post(f"/api/demo/consentement/{ipp}/refuse").json()["consentement"]["statut"] == "refuse"
     envoi = sans_jeton.post(f"/api/demo/envoi/{ipp}").json()
     assert envoi["consentement"]["statut"] == "refuse"
-    assert len(envoi["etapes"]) == 4 and envoi["verdict"]["etat"] in {"ok", "bloque", "attente", "echec"}
+    assert len(envoi["etapes"]) == 5 and envoi["verdict"]["etat"] in {"ok", "bloque", "attente", "echec"}
 
 
 # ── Patient inconnu du CHU : refuse par defaut, cree si autorise (H1_CREER_PATIENTS_RETOUR / DEMO) ──
@@ -262,3 +262,36 @@ def test_consentement_joint_extrait_du_bundle_de_h2(deux_api, monkeypatch):
     joint = retour_api.consentement_joint(bundle.json())
     assert joint and joint["statut"] == "actif" and "recueilli_par" in joint
     assert retour_api.consentement_joint({"resourceType": "Bundle", "entry": []}) is None
+
+
+def test_demo_h1_apercu_des_images_recues(monkeypatch):
+    """Fiche : examens recus de la clinique ; apercu PNG seulement pour une etude RECUPEREE du patient."""
+    from contextlib import contextmanager
+    from datetime import datetime
+    import ui_h1
+    from imagerie.dicom import generer_etude, vers_octets
+    from imagerie.dicomweb import EntrepotMemoire
+
+    uid, uid_attente = "2.25.11060236952204337488", "2.25.5"
+    pacs = EntrepotMemoire()
+    pacs.stocker([vers_octets(ds) for ds in generer_etude(
+        {"id": "P2-0051", "nom": "Alaoui", "prenom": "Youssef", "naissance": "1968-04-12", "sexe": "M"},
+        {"study_uid": uid, "instances": 2, "date": datetime(2026, 9, 20)}, etablissement="Clinique")])
+    monkeypatch.setenv("DEMO", "1")
+    monkeypatch.setattr(ui_h1.AdaptateurH1, "_pacs", lambda self: pacs)
+
+    @contextmanager
+    def connexion():
+        yield object()
+
+    monkeypatch.setattr(repo, "connexion", connexion)
+    monkeypatch.setattr(repo, "lire_recus", lambda conn, ipp: {"etude_imagerie": [
+        {"study_uid": uid, "description": "Fond d'oeil", "modalites": "OP", "nb_instances": 2, "statut": "RECUPEREE"},
+        {"study_uid": uid_attente, "description": "Autre", "modalites": "OP", "nb_instances": 1, "statut": "available"}]}
+        if ipp == "P1-0106" else {"etude_imagerie": []})
+    c = TestClient(api.app)
+    ok = c.get(f"/api/demo/image/P1-0106/{uid}/0")
+    assert ok.status_code == 200 and ok.headers["content-type"] == "image/png" and ok.content.startswith(b"\x89PNG")
+    assert c.get(f"/api/demo/image/P1-0106/{uid_attente}/0").status_code == 404        # pas encore recuperee
+    assert c.get(f"/api/demo/image/P1-0101/{uid}/0").status_code == 404                # etude d'un autre patient
+    assert c.get(f"/api/demo/image/P1-0106/{uid}/9").status_code == 404

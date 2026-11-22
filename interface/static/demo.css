@@ -82,3 +82,15 @@
   max-height: 320px; font: .82rem/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chargement { color: var(--encre-douce); padding: 8px 0; }
 @media (max-width: 900px) { .entree-bundle summary { grid-template-columns: 1fr; } }
+
+/* ---- Imagerie DICOM : examens et vignettes ---- */
+.examen { display: grid; gap: 6px; }
+.vignettes { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.vignette { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.vignette img { display: block; width: 128px; height: 128px; border: 1px solid var(--trait); border-radius: var(--rayon);
+  background: #111; cursor: zoom-in; }
+.vignette figcaption { font-size: .8rem; color: var(--texte-doux, #5c6b78); }
+.vignette.agrandie { flex-basis: 100%; justify-items: start; }
+.vignette.agrandie img { width: min(100%, 384px); height: auto; aspect-ratio: 1; cursor: zoom-out; }
+.sans-image { display: grid; place-items: center; width: 128px; height: 128px; border: 1px dashed var(--trait);
+  border-radius: var(--rayon); font-size: .8rem; text-align: center; padding: 6px; }

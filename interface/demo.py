@@ -16,6 +16,7 @@ Pas de `from __future__ import annotations` : FastAPI doit voir les vraies class
 import json
 import logging
 import os
+import re
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -97,14 +98,36 @@ def exiger_demo(requete: Request) -> None:
         raise HTTPException(403, "Mode demonstration reserve au poste local.")
 
 
+def etape_images(imagerie) -> tuple:
+    """(etat, texte) de l'etape « Images DICOM » a partir du bilan renvoye par l'autre hopital."""
+    if imagerie is None:
+        return "ok", "Aucune image transférée avec cet envoi."
+    if not imagerie:
+        return "ok", "Aucune image dans ce dossier."
+    recues = [i for i in imagerie if i.get("statut") == "RECUPEREE"]
+    images = sum(int(i.get("instances") or 0) for i in recues)
+    refusees = [i for i in imagerie if i.get("statut") in ("REFUSEE", "URL_REFUSEE", "INCOHERENTE", "ABSENTE")]
+    attente = [i for i in imagerie if i.get("statut") == "EN_ATTENTE"]
+    morceaux = []
+    if recues:
+        morceaux.append(f"{len(recues)} examen(s) transféré(s), {images} image(s)")
+    if refusees:
+        morceaux.append(f"{len(refusees)} refusé(s) (imagerie exclue par le patient, ou examen introuvable)")
+    if attente:
+        morceaux.append(f"{len(attente)} en attente (PACS ou passerelle indisponible, à relancer)")
+    etat = "attente" if attente and not recues else "echec" if refusees and not recues else "ok"
+    return etat, " ; ".join(morceaux) + "."
+
+
 def etapes_envoi(resultat: dict, consentement: dict, autre: str) -> tuple:
     """(etapes, verdict) a partir du resultat reel de `envoyer_dossier`."""
     statut, http = resultat.get("statut"), resultat.get("http")
     detail = str(resultat.get("detail") or "")
     noms = ["Consentement du patient", "Dossier converti en Bundle FHIR",
-            f"Pré-vérification par {autre} (rien n'est enregistré)", f"Envoi et import chez {autre}"]
-    etats = ["saute"] * 4
-    textes = [""] * 4
+            f"Pré-vérification par {autre} (rien n'est enregistré)", f"Envoi et import chez {autre}",
+            "Images DICOM"]
+    etats = ["saute"] * 5
+    textes = [""] * 5
     if statut == "bloque":
         etats[0], textes[0] = "echec", "Refusé : " + (consentement.get("motif") or "consentement non actif") + "."
         verdict = ("bloque", "Bloqué : rien n'a quitté l'hôpital",
@@ -131,6 +154,7 @@ def etapes_envoi(resultat: dict, consentement: dict, autre: str) -> tuple:
                     etats[2], textes[2] = "ok", f"{autre} a vérifié le Bundle : il est conforme."
                 if statut == "envoye":
                     etats[3], textes[3] = "ok", "Importé, envoi confirmé."
+                    etats[4], textes[4] = etape_images(resultat.get("imagerie"))
                     verdict = ("ok", f"Transmis à {autre}", "Le dossier est maintenant dans la base de l'autre hôpital.")
                 elif statut == "en_attente":
                     etats[3], textes[3] = "attente", detail
@@ -197,6 +221,24 @@ def installer_demo(app, *, service: str, adaptateur) -> None:
             bundle = {"disponible": False, "motif": exc.message}
         JOURNAL.info("demo : detail %s (%d ms)", service, (time.perf_counter() - t0) * 1000)
         return _json({"dossier": dossier, "bundle": bundle})
+
+    @routeur.get("/api/demo/image/{identifiant}/{study_uid}/{rang}", dependencies=garde)
+    def image(identifiant: str, study_uid: str, rang: int):
+        """Apercu PNG d'une image DICOM du patient. Le serveur lit le PACS local : le navigateur ne recoit
+        qu'une image (aucune etiquette DICOM, donc ni nom ni date de naissance)."""
+        from imagerie.apercu import ErreurApercu, png_depuis_dicom
+        if not re.fullmatch(r"[0-9.]{1,64}", study_uid) or not 0 <= rang < 200:
+            return _json({"erreur": "Identifiant d'etude invalide."}, 422)
+        try:
+            octets = adaptateur.image_dicom(identifiant, study_uid, rang)
+            png = png_depuis_dicom(octets)
+        except LookupError:
+            return _json({"erreur": "Image introuvable."}, 404)
+        except ErreurApercu as exc:
+            return _json({"erreur": "Apercu indisponible : " + str(exc)}, 415)
+        except ErreurInterface as exc:
+            return erreur(exc)
+        return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
 
     @routeur.post("/api/demo/consentement/{identifiant}/{statut}", dependencies=garde)
     def consentement(identifiant: str, statut: str):

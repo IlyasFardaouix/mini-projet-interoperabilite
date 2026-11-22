@@ -206,6 +206,32 @@ function contenuBundle(b) {
   ];
 }
 
+const SANS_IMAGE = "Aperçu indisponible";
+
+function vignette(id, etude, i) {
+  const alt = `Image ${i + 1} de l'examen ${etude.description || ""}`.trim();
+  const cadre = h("figure", { class: "vignette" });
+  const img = h("img", { alt, width: 128, height: 128, loading: "lazy", title: "Cliquer pour agrandir",
+    src: `/api/demo/image/${encodeURIComponent(id)}/${encodeURIComponent(etude.study_uid)}/${i}`,
+    onclick: () => cadre.classList.toggle("agrandie") });
+  img.addEventListener("error", () => { img.replaceWith(h("span", { class: "sans-image" }, SANS_IMAGE)); });
+  cadre.append(img, h("figcaption", {}, `Image ${i + 1}`));
+  return cadre;
+}
+
+function imagerie(dos) {
+  const etudes = dos.imagerie || [];
+  if (!etudes.length) return h("p", { class: "chargement" }, "Aucun examen d'imagerie pour ce patient.");
+  return etudes.map((x) => {
+    const n = Number(x.instances) || 0;
+    const titre = [x.description || "Examen d'imagerie", x.modalite].filter(Boolean).join(" · ");
+    return h("div", { class: "examen" },
+      h("strong", {}, titre),
+      h("small", {}, x.pret ? `${n} image(s)` : "Images pas encore reçues de la clinique (statut : " + (x.statut || "inconnu") + ")"),
+      x.pret && n ? h("div", { class: "vignettes" }, Array.from({ length: Math.min(n, 12) }, (_, i) => vignette(dos.patient.id, x, i))) : null);
+  });
+}
+
 function fiche() {
   if (e.detailEnCours && !e.detail) return h("p", { class: "chargement" }, "Chargement du dossier…");
   const d = e.detail;
@@ -214,6 +240,8 @@ function fiche() {
   const b = d.bundle;
   return h("div", { class: "fiche" },
     h("details", { open: true }, h("summary", {}, "Informations du patient"), h("div", { class: "corps" }, infos(d.dossier))),
+    h("details", { open: true }, h("summary", {}, `Imagerie DICOM (${(d.dossier.imagerie || []).length})`),
+      h("div", { class: "corps" }, imagerie(d.dossier))),
     h("details", { open: true }, h("summary", {}, b && b.disponible ? `Contenu du Bundle FHIR (${b.total} ressources)` : "Contenu du Bundle FHIR"),
       h("div", { class: "corps" }, contenuBundle(b))));
 }

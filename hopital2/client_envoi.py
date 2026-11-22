@@ -148,7 +148,15 @@ def tenter(outbox: Outbox, envoi_id: int, h1, *, chemin: str = "/api/retours",
 
     if rep.status_code in (200, 201):
         outbox.maj(envoi_id, now, statut="envoye", tentatives=n, code_http=rep.status_code, derniere_erreur=None)
-        return _resultat(outbox, envoi_id, "envoye", rep.status_code, "Envoi confirmé par H1.")
+        resultat = _resultat(outbox, envoi_id, "envoye", rep.status_code, "Envoi confirmé par H1.")
+        try:                                                  # bilan du transfert des images, si H1 en annonce un
+            imagerie = rep.json().get("imagerie")
+        except Exception:
+            imagerie = None
+        if isinstance(imagerie, list):
+            resultat["imagerie"] = [{"statut": str(i.get("statut")), "instances": i.get("instances")}
+                                    for i in imagerie if isinstance(i, dict)]
+        return resultat
     if rep.status_code in CODES_A_REESSAYER:
         return _temporaire(outbox, ligne, n, now, rep.status_code, _resume(rep))
     outbox.maj(envoi_id, now, statut="echec", tentatives=n, code_http=rep.status_code, derniere_erreur=_resume(rep))

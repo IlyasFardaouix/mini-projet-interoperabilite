@@ -22,6 +22,20 @@ def _iso(valeur):
     return valeur.isoformat(sep=" ", timespec="minutes") if hasattr(valeur, "isoformat") else valeur
 
 
+def _instance_pacs(pacs, study_uid, rang):
+    """`rang`-ieme instance d'une etude du PACS local, ou l'erreur d'interface qui convient."""
+    from imagerie.dicomweb import ErreurPacs
+    if pacs is None:
+        raise ErreurInterface(503, "PACS non configure (ORTHANC_URL).", "transient")
+    try:
+        instances = pacs.etude(study_uid)
+    except ErreurPacs as exc:
+        raise ErreurInterface(503, str(exc), "transient") from exc
+    if not instances or not 0 <= rang < len(instances):
+        raise LookupError(study_uid)
+    return instances[rang]
+
+
 class AdaptateurH1:
     etablissement, autre, autre_etablissement = "CHU Al Massira", "H2", "Clinique Al Baçar"
 
@@ -67,7 +81,29 @@ class AdaptateurH1:
             } for s in d.get("sejours", [])],
             "recu_de_l_autre_hopital": {t: [{k: _iso(v) for k, v in l.items()} for l in lignes]
                                         for t, lignes in recus.items() if lignes},
+            "imagerie": [{"study_uid": e.get("study_uid"), "description": e.get("description"),
+                          "modalite": e.get("modalites"), "instances": e.get("nb_instances"),
+                          "statut": e.get("statut"), "pret": e.get("statut") == "RECUPEREE"}
+                         for e in recus.get("etude_imagerie", []) if e.get("study_uid")],
         }
+
+    def _pacs(self):
+        from imagerie.dicomweb import entrepot_depuis_env
+        return entrepot_depuis_env("H1")
+
+    def image_dicom(self, identifiant, study_uid, rang):
+        """Octets DICOM de la `rang`-ieme image d'une etude RECUE ET RECUPEREE pour ce patient."""
+        try:
+            with repo.connexion() as conn:
+                etudes = repo.lire_recus(conn, identifiant).get("etude_imagerie", [])
+        except oracledb.DatabaseError as exc:
+            raise ErreurInterface(503, "Base Oracle indisponible.", "transient") from exc
+        etude = next((x for x in etudes if x.get("study_uid") == study_uid), None)
+        if etude is None:
+            raise LookupError(study_uid)
+        if etude.get("statut") != "RECUPEREE":
+            raise ErreurInterface(404, "Images pas encore recuperees depuis la clinique.", "not-found")
+        return _instance_pacs(self._pacs(), study_uid, rang)
 
     # -- envoi vers la clinique ---------------------------------------------------------
     def _file(self):

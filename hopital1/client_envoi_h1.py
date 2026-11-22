@@ -76,11 +76,14 @@ class Outbox:
     il reste en clair et un avertissement est affiché.
     """
 
+    _avertie = False
+
     def __init__(self, chemin: str = ":memory:", chiffreur=_PAR_DEFAUT):
         if chiffreur is _PAR_DEFAUT:
             from securite.chiffrement import Chiffreur
             chiffreur = Chiffreur.depuis_env("H1_CLE_CHIFFREMENT")
-            if chiffreur is None and chemin != ":memory:":
+            if chiffreur is None and chemin != ":memory:" and not Outbox._avertie:
+                Outbox._avertie = True                      # une seule fois par processus, pas à chaque ouverture
                 print("[client_envoi_h1] ATTENTION : H1_CLE_CHIFFREMENT absent, Bundles en clair sur le disque.")
         self.chiffreur = chiffreur
         self.db = sqlite3.connect(chemin)

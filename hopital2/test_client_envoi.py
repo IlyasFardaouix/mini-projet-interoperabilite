@@ -37,7 +37,10 @@ class FausseApiH1:
                 return JSONResponse({"resourceType": "OperationOutcome", "issue": [
                     {"severity": "error", "code": "processing", "diagnostics": f"H1 simulé : {self.mode}"}]},
                     status_code=codes[self.mode])
-            return JSONResponse({"simulation": chemin.endswith("simulation")}, status_code=200)
+            corps_rep = {"simulation": chemin.endswith("simulation")}
+            if getattr(self, "imagerie", None) is not None and not chemin.endswith("simulation"):
+                corps_rep["imagerie"] = self.imagerie
+            return JSONResponse(corps_rep, status_code=200)
 
         @app.post("/api/retours/simulation")
         async def sim(request: Request):
@@ -75,6 +78,15 @@ def test_envoi_nominal(h2):
     assert bundle["type"] == "transaction"
     assert [e["resource"]["resourceType"] for e in bundle["entry"]].count("Patient") == 1
     assert outbox.lister()[0]["statut"] == "envoye"
+
+
+def test_le_bilan_des_images_de_h1_est_repris(h2):
+    h1 = FausseApiH1()
+    h1.imagerie = [{"study_uid": "2.25.1", "statut": "RECUPEREE", "instances": 3}]
+    r = envoyer_dossier("P2-0052", h2, h1.client, Outbox(), maintenant=1000.0)
+    assert r["statut"] == "envoye" and r["imagerie"] == [{"statut": "RECUPEREE", "instances": 3}]
+    sans = envoyer_dossier("P2-0052", h2, FausseApiH1().client, Outbox(), maintenant=1000.0)
+    assert "imagerie" not in sans
 
 
 def test_h1_injoignable_puis_reprise_sans_doublon(h2):

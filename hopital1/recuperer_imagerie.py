@@ -44,6 +44,9 @@ SQL_A_RECUPERER = (
     "ORDER BY id_etude")
 
 
+SQL_A_RECUPERER_PATIENT = SQL_A_RECUPERER.replace("ORDER BY id_etude", "AND ipp = :ipp ORDER BY id_etude")
+
+
 def _lignes(cur):
     cols = [d[0].lower() for d in cur.description]
     return [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -62,11 +65,14 @@ def _marquer(conn, etude, statut, details, *, url=None, instances=None):
     conn.commit()
 
 
-def recuperer(conn, client_h2, pacs_h1, *, base_h2: str, url_locale: str = URL_LOCALE) -> list:
-    """Traite chaque étude en attente ; renvoie un bilan par étude."""
+def recuperer(conn, client_h2, pacs_h1, *, base_h2: str, url_locale: str = URL_LOCALE, ipp=None) -> list:
+    """Traite chaque étude en attente (celles du patient `ipp` si précisé) ; renvoie un bilan par étude."""
     base = base_h2.rstrip("/")
     with conn.cursor() as cur:
-        cur.execute(SQL_A_RECUPERER)
+        if ipp is None:
+            cur.execute(SQL_A_RECUPERER)
+        else:
+            cur.execute(SQL_A_RECUPERER_PATIENT, ipp=ipp)
         etudes = _lignes(cur)
     bilan = []
     for etude in etudes:
@@ -100,6 +106,35 @@ def recuperer(conn, client_h2, pacs_h1, *, base_h2: str, url_locale: str = URL_L
                  url=url_locale, instances=len(octets))
         bilan.append({"study_uid": uid, "statut": "RECUPEREE", "instances": len(octets)})
     return bilan
+
+
+def recuperation_automatique_active() -> bool:
+    """Les images suivent-elles le dossier tout de suite ? Oui en démonstration (DEMO=1) ou avec
+    H1_IMAGERIE_AUTO=1 ; sinon, on lance recuperer_imagerie.py à la main."""
+    return os.getenv("DEMO") == "1" or os.getenv("H1_IMAGERIE_AUTO") == "1"
+
+
+def recuperer_apres_retour(conn, ipp, *, client=None, pacs=None) -> list:
+    """Récupère, juste après l'import d'un retour, les images du patient `ipp`.
+
+    Ne lève jamais d'exception : l'import du dossier est déjà validé, et une image non transférée
+    reste « en attente » (relancée par recuperer_imagerie.py). Renvoie un bilan par étude (liste vide :
+    aucune image à récupérer), ou None si la récupération automatique est désactivée ou non configurée."""
+    if not recuperation_automatique_active():
+        return None
+    base = (os.getenv("H2_DICOMWEB_URL") or "").strip()
+    try:
+        if pacs is None:
+            from imagerie.dicomweb import entrepot_depuis_env
+            pacs = entrepot_depuis_env("H1")
+        if not base or pacs is None:
+            return None
+        if client is None:
+            from securite import client_securise
+            client = client_securise(base, variable_jeton="H1_JETON_VERS_H2")
+        return recuperer(conn, client, pacs, base_h2=base, ipp=ipp)
+    except Exception as exc:                                  # noqa: BLE001 - voir docstring
+        return [{"study_uid": None, "statut": "EN_ATTENTE", "detail": type(exc).__name__}]
 
 
 def main() -> int:
