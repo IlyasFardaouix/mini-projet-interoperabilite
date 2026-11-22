@@ -403,7 +403,7 @@ def bundle_vers_lignes(bundle, trouver_ipp, nouvel_ipp=None, ignorer_propres=Tru
         etude_de[id(im)] = id_etude
         out["etude_imagerie"].append({
             "id_etude": id_etude, "ipp": ipp, "id_sejour": sejour_lie(im),
-            "study_uid": (uid_etude or "")[:128], "accession": acc,
+            "study_uid": (uid_etude or "").removeprefix("urn:oid:")[:128], "accession": acc,   # UID DICOM nu : « urn:oid: » est une notation FHIR
             "modalites": ",".join(mods) or None, "description": im.get("description"),
             "date_etude": lire_datetime(im.get("started")),
             "nb_series": im.get("numberOfSeries") or len(series) or None,

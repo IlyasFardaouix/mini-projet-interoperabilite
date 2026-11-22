@@ -76,7 +76,7 @@ def recuperer(conn, client_h2, pacs_h1, *, base_h2: str, url_locale: str = URL_L
         etudes = _lignes(cur)
     bilan = []
     for etude in etudes:
-        uid = etude["study_uid"]
+        uid = str(etude["study_uid"]).removeprefix("urn:oid:")     # anciennes lignes : « urn:oid:<UID> » (notation FHIR)
         annoncee = str(etude["url_pacs"]).rstrip("/")
         if annoncee not in (base, url_locale.rstrip("/")):
             _marquer(conn, etude, "URL_REFUSEE", {"motif": "adresse differente de H2_DICOMWEB_URL"})
@@ -154,7 +154,7 @@ def main() -> int:
     with repo.connexion() as conn:
         bilan = recuperer(conn, client, pacs, base_h2=base)
     for ligne in bilan:
-        print(f"{ligne['study_uid']:<40} {ligne['statut']}")
+        print(f"{ligne['study_uid']:<40} {ligne['statut']}" + (f"  ({ligne['detail']})" if ligne.get("detail") else ""))
     print(f"{sum(1 for b in bilan if b['statut'] == 'RECUPEREE')} étude(s) récupérée(s) sur {len(bilan)}.")
     return 0
 

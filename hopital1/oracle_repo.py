@@ -181,7 +181,8 @@ Ce controle ne cree aucun patient et ne rapproche jamais par les seuls traits.
 def patient_de_l_etude(conn, study_uid):
     """IPP du patient d'une etude d'imagerie recue, ou None."""
     with conn.cursor() as cur:
-        cur.execute("SELECT ipp FROM etude_imagerie WHERE study_uid = :v", v=study_uid)
+        cur.execute("SELECT ipp FROM etude_imagerie WHERE study_uid IN (:v, :w)",     # w : ancienne forme « urn:oid: »
+                    v=study_uid, w="urn:oid:" + study_uid)
         ligne = cur.fetchone()
     return ligne[0] if ligne else None
 

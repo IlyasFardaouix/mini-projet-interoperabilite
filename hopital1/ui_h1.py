@@ -81,7 +81,7 @@ class AdaptateurH1:
             } for s in d.get("sejours", [])],
             "recu_de_l_autre_hopital": {t: [{k: _iso(v) for k, v in l.items()} for l in lignes]
                                         for t, lignes in recus.items() if lignes},
-            "imagerie": [{"study_uid": e.get("study_uid"), "description": e.get("description"),
+            "imagerie": [{"study_uid": str(e.get("study_uid")).removeprefix("urn:oid:"), "description": e.get("description"),
                           "modalite": e.get("modalites"), "instances": e.get("nb_instances"),
                           "statut": e.get("statut"), "pret": e.get("statut") == "RECUPEREE"}
                          for e in recus.get("etude_imagerie", []) if e.get("study_uid")],
@@ -98,7 +98,7 @@ class AdaptateurH1:
                 etudes = repo.lire_recus(conn, identifiant).get("etude_imagerie", [])
         except oracledb.DatabaseError as exc:
             raise ErreurInterface(503, "Base Oracle indisponible.", "transient") from exc
-        etude = next((x for x in etudes if x.get("study_uid") == study_uid), None)
+        etude = next((x for x in etudes if str(x.get("study_uid")).removeprefix("urn:oid:") == study_uid), None)
         if etude is None:
             raise LookupError(study_uid)
         if etude.get("statut") != "RECUPEREE":

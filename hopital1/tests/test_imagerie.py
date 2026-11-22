@@ -184,3 +184,12 @@ def test_apres_retour_une_panne_n_annule_pas_l_import(monkeypatch):
     monkeypatch.setenv("H2_DICOMWEB_URL", BASE_H2)
     bilan = recuperer_apres_retour(FausseConnexion([ligne()]), "P1-0106", client=object(), pacs=EntrepotMemoire())
     assert bilan and bilan[0]["statut"] == "EN_ATTENTE"
+
+
+def test_uid_au_format_fhir_urn_oid_est_nettoye_avant_la_requete():
+    """Une ligne enregistree avec « urn:oid:<UID> » (notation FHIR) interroge la passerelle avec le UID nu."""
+    conn, pacs = FausseConnexion([ligne(uid="urn:oid:" + UID)]), EntrepotMemoire()
+    client = clinique({UID: etude()})
+    bilan = recuperer(conn, client, pacs, base_h2=BASE_H2, url_locale=LOCALE)
+    assert bilan == [{"study_uid": UID, "statut": "RECUPEREE", "instances": 2}]
+    assert all("urn" not in appel and "oid" not in appel for appel in client.appels)

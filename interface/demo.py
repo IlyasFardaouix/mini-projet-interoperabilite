@@ -114,7 +114,9 @@ def etape_images(imagerie) -> tuple:
     if refusees:
         morceaux.append(f"{len(refusees)} refusé(s) (imagerie exclue par le patient, ou examen introuvable)")
     if attente:
-        morceaux.append(f"{len(attente)} en attente (PACS ou passerelle indisponible, à relancer)")
+        cause = next((str(i["detail"]) for i in attente if i.get("detail")), "")
+        morceaux.append(f"{len(attente)} en attente (PACS ou passerelle indisponible, à relancer)"
+                        + (f" : {cause}" if cause else ""))
     etat = "attente" if attente and not recues else "echec" if refusees and not recues else "ok"
     return etat, " ; ".join(morceaux) + "."
 

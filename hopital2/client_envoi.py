@@ -154,7 +154,8 @@ def tenter(outbox: Outbox, envoi_id: int, h1, *, chemin: str = "/api/retours",
         except Exception:
             imagerie = None
         if isinstance(imagerie, list):
-            resultat["imagerie"] = [{"statut": str(i.get("statut")), "instances": i.get("instances")}
+            resultat["imagerie"] = [{"statut": str(i.get("statut")), "instances": i.get("instances"),
+                                     **({"detail": str(i["detail"])[:160]} if i.get("detail") else {})}
                                     for i in imagerie if isinstance(i, dict)]
         return resultat
     if rep.status_code in CODES_A_REESSAYER:

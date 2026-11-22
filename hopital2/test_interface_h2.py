@@ -169,6 +169,9 @@ def test_demo_etapes_deduites_du_resultat_reel():
     assert refus[4]["etat"] == "echec" and "imagerie exclue" in refus[4]["texte"]
     patiente, _ = etapes_envoi({"statut": "envoye", "http": 201, "imagerie": [{"statut": "EN_ATTENTE"}]}, {}, "CHU")
     assert patiente[4]["etat"] == "attente"
+    cause, _ = etapes_envoi({"statut": "envoye", "http": 201,
+                             "imagerie": [{"statut": "EN_ATTENTE", "detail": "PACS injoignable (ConnectError)"}]}, {}, "CHU")
+    assert "PACS injoignable (ConnectError)" in cause[4]["texte"]
     att, v = etapes_envoi({"statut": "en_attente", "http": None, "detail": "injoignable"}, {}, "CHU")
     assert [x["etat"] for x in att] == ["ok", "ok", "attente", "attente", "saute"] and v["etat"] == "attente"
     ref, v = etapes_envoi({"statut": "refuse_simulation", "http": 422, "detail": "d"}, {}, "CHU")
