@@ -1,0 +1,10 @@
+{
+  "resourceType": "OperationOutcome",
+  "issue": [
+    {
+      "severity": "error",
+      "code": "not-found",
+      "diagnostics": "Patient P2-9999 introuvable dans H2."
+    }
+  ]
+}

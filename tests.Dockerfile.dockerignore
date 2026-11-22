@@ -1,0 +1,23 @@
+# Filtre du contexte de l'image de TEST. Comme .dockerignore, sauf que les tests et les outils
+# de securite doivent entrer dans l'image. Les secrets, certificats et journaux restent dehors.
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.p12
+**/*.pfx
+**/registre_jetons.json
+**/comptes/
+**/jetons_locaux/
+**/certificats/
+**/journaux/
+**/sortie/
+**/output/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.sqlite*
+**/*.db
+archive/
+.git/

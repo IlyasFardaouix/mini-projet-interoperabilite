@@ -1,0 +1,9 @@
+#!/bin/sh
+# Vérifie les fichiers préparés, y compris leur contenu dans l'index Git.
+if command -v py >/dev/null 2>&1; then
+    exec py -3 securite/hooks/check_staged.py
+fi
+if command -v python3 >/dev/null 2>&1; then
+    exec python3 securite/hooks/check_staged.py
+fi
+exec python securite/hooks/check_staged.py
