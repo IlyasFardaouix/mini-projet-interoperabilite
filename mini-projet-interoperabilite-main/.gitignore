@@ -1,0 +1,31 @@
+# Configurations et données locales
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+!**/.env.template
+securite/registre_jetons.json
+securite/comptes/
+securite/jetons_locaux/
+securite/certificats/
+journaux/
+**/sortie/
+hopital1/output/
+hopital2/output/
+**/validation/validator_cli.jar
+
+# Environnements et artefacts de développement
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+*.py[cod]
+*.sqlite*
+*.db
+
+# Copies historiques locales : le code actif est dans hopital1/ et hopital2/.
+/archive/
+/tmp/
+/output/pdf/

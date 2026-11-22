@@ -1,0 +1,10 @@
+{
+  "resourceType": "OperationOutcome",
+  "issue": [
+    {
+      "severity": "error",
+      "code": "login",
+      "diagnostics": "Jeton absent ou invalide (en-tête Authorization: Bearer …)."
+    }
+  ]
+}

@@ -1,0 +1,576 @@
+{
+ "organisations": [
+  {
+   "org_id": "ORG-ALBACAR",
+   "identifier": "CLINIQUE-AL-BACAR",
+   "active": true,
+   "type_label": "Clinique privée d'ophtalmologie",
+   "name": "Clinique Al Baçar",
+   "city": "Casablanca",
+   "country": "MA",
+   "_endpoint_ref": "EP-PACS-001"
+  }
+ ],
+ "locations": [
+  {
+   "location_id": "LOC-RETINA",
+   "name": "Service Rétine",
+   "_type": "exam-room",
+   "_dept": "Retina"
+  },
+  {
+   "location_id": "LOC-GLAUCOMA",
+   "name": "Service Glaucome",
+   "_type": "exam-room",
+   "_dept": "Glaucoma"
+  },
+  {
+   "location_id": "LOC-CATARACT",
+   "name": "Service Cataracte",
+   "_type": "operating-room",
+   "_dept": "Cataract Surgery"
+  },
+  {
+   "location_id": "LOC-REFRACT",
+   "name": "Service Chirurgie Réfractive",
+   "_type": "operating-room",
+   "_dept": "Refractive Surgery"
+  },
+  {
+   "location_id": "LOC-GENERAL",
+   "name": "Consultation Générale",
+   "_type": "consultation",
+   "_dept": "General Ophthalmology"
+  }
+ ],
+ "endpoints": [
+  {
+   "endpoint_id": "EP-PACS-001",
+   "status": "active",
+   "connection_type": "dicom-wado-rs",
+   "name": "PACS Orthanc — DICOMweb WADO-RS",
+   "address": "http://localhost:8042/dicom-web",
+   "mime_type": "application/dicom"
+  },
+  {
+   "endpoint_id": "EP-FHIR-001",
+   "status": "active",
+   "connection_type": "hl7-fhir-rest",
+   "name": "Serveur FHIR R5 — Clinique Al Baçar",
+   "address": "http://localhost:8080/fhir",
+   "mime_type": "application/fhir+json"
+  }
+ ],
+ "devices": [
+  {
+   "device_id": "DEV-TONO-001",
+   "display_name": "Tonomètre à aplanation Goldmann",
+   "status": "active",
+   "manufacturer": "Haag-Streit",
+   "model_number": "AT 900",
+   "serial_number": "HS-AT900-20240312",
+   "type_label": "Tonomètre à aplanation",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "device_id": "DEV-OCT-001",
+   "display_name": "OCT Spectralis",
+   "status": "active",
+   "manufacturer": "Heidelberg Engineering",
+   "model_number": "Spectralis HRA+OCT",
+   "serial_number": "HE-SPEC-20230518",
+   "type_label": "Tomographe en cohérence optique",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "device_id": "DEV-RETINO-001",
+   "display_name": "Rétinographe non mydriatique",
+   "status": "active",
+   "manufacturer": "Topcon",
+   "model_number": "NW400",
+   "serial_number": "TC-NW400-20240101",
+   "type_label": "Rétinographe",
+   "_location_ref": "LOC-RETINA"
+  }
+ ],
+ "practitioners": [
+  {
+   "prac_id": "PRAC-BARGACH",
+   "identifier": "PRAC-BARGACH",
+   "active": true,
+   "last_name": "Bargach",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BELGHITI",
+   "identifier": "PRAC-BELGHITI",
+   "active": true,
+   "last_name": "Belghiti",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BELKADI",
+   "identifier": "PRAC-BELKADI",
+   "active": true,
+   "last_name": "Belkadi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENABBOU",
+   "identifier": "PRAC-BENABBOU",
+   "active": true,
+   "last_name": "Benabbou",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENCHEKROUN",
+   "identifier": "PRAC-BENCHEKROUN",
+   "active": true,
+   "last_name": "Benchekroun",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENJELLOUN",
+   "identifier": "PRAC-BENJELLOUN",
+   "active": true,
+   "last_name": "Benjelloun",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENKIRANE",
+   "identifier": "PRAC-BENKIRANE",
+   "active": true,
+   "last_name": "Benkirane",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENNIS",
+   "identifier": "PRAC-BENNIS",
+   "active": true,
+   "last_name": "Bennis",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENSLIMANE",
+   "identifier": "PRAC-BENSLIMANE",
+   "active": true,
+   "last_name": "Benslimane",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BENSOUDA",
+   "identifier": "PRAC-BENSOUDA",
+   "active": true,
+   "last_name": "Bensouda",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BOUAYAD",
+   "identifier": "PRAC-BOUAYAD",
+   "active": true,
+   "last_name": "Bouayad",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-BOULAHIA",
+   "identifier": "PRAC-BOULAHIA",
+   "active": true,
+   "last_name": "Boulahia",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-CHAOUI",
+   "identifier": "PRAC-CHAOUI",
+   "active": true,
+   "last_name": "Chaoui",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-FASSI_FIHRI",
+   "identifier": "PRAC-FASSI_FIHRI",
+   "active": true,
+   "last_name": "Fassi-Fihri",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-GHALI",
+   "identifier": "PRAC-GHALI",
+   "active": true,
+   "last_name": "Ghali",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-IDRISSI_KAITOUNI",
+   "identifier": "PRAC-IDRISSI_KAITOUNI",
+   "active": true,
+   "last_name": "Idrissi-Kaitouni",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-JAIDI",
+   "identifier": "PRAC-JAIDI",
+   "active": true,
+   "last_name": "Jaidi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-LAMRANI",
+   "identifier": "PRAC-LAMRANI",
+   "active": true,
+   "last_name": "Lamrani",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-LYAZIDI",
+   "identifier": "PRAC-LYAZIDI",
+   "active": true,
+   "last_name": "Lyazidi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-MANSOURI",
+   "identifier": "PRAC-MANSOURI",
+   "active": true,
+   "last_name": "Mansouri",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-MERNISSI",
+   "identifier": "PRAC-MERNISSI",
+   "active": true,
+   "last_name": "Mernissi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-MRABET",
+   "identifier": "PRAC-MRABET",
+   "active": true,
+   "last_name": "Mrabet",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-MRANI",
+   "identifier": "PRAC-MRANI",
+   "active": true,
+   "last_name": "Mrani",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-OULKADI",
+   "identifier": "PRAC-OULKADI",
+   "active": true,
+   "last_name": "Oulkadi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-RAHIMI",
+   "identifier": "PRAC-RAHIMI",
+   "active": true,
+   "last_name": "Rahimi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-TOUIMI",
+   "identifier": "PRAC-TOUIMI",
+   "active": true,
+   "last_name": "Touimi",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-ZAIDANE",
+   "identifier": "PRAC-ZAIDANE",
+   "active": true,
+   "last_name": "Zaidane",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  },
+  {
+   "prac_id": "PRAC-ZERHOUNI",
+   "identifier": "PRAC-ZERHOUNI",
+   "active": true,
+   "last_name": "Zerhouni",
+   "first_name": "—",
+   "qualification": "Ophtalmologue"
+  }
+ ],
+ "practitioner_roles": [
+  {
+   "role_id": "ROLE-BARGACH",
+   "active": true,
+   "practitioner_ref": "PRAC-BARGACH",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie de la cataracte",
+   "_location_ref": "LOC-CATARACT"
+  },
+  {
+   "role_id": "ROLE-BELGHITI",
+   "active": true,
+   "practitioner_ref": "PRAC-BELGHITI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie de la cataracte",
+   "_location_ref": "LOC-CATARACT"
+  },
+  {
+   "role_id": "ROLE-BELKADI",
+   "active": true,
+   "practitioner_ref": "PRAC-BELKADI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie réfractive",
+   "_location_ref": "LOC-REFRACT"
+  },
+  {
+   "role_id": "ROLE-BENABBOU",
+   "active": true,
+   "practitioner_ref": "PRAC-BENABBOU",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-BENCHEKROUN",
+   "active": true,
+   "practitioner_ref": "PRAC-BENCHEKROUN",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-BENJELLOUN",
+   "active": true,
+   "practitioner_ref": "PRAC-BENJELLOUN",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-BENKIRANE",
+   "active": true,
+   "practitioner_ref": "PRAC-BENKIRANE",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-BENNIS",
+   "active": true,
+   "practitioner_ref": "PRAC-BENNIS",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Ophtalmologie générale",
+   "_location_ref": "LOC-GENERAL"
+  },
+  {
+   "role_id": "ROLE-BENSLIMANE",
+   "active": true,
+   "practitioner_ref": "PRAC-BENSLIMANE",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-BENSOUDA",
+   "active": true,
+   "practitioner_ref": "PRAC-BENSOUDA",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie réfractive",
+   "_location_ref": "LOC-REFRACT"
+  },
+  {
+   "role_id": "ROLE-BOUAYAD",
+   "active": true,
+   "practitioner_ref": "PRAC-BOUAYAD",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-BOULAHIA",
+   "active": true,
+   "practitioner_ref": "PRAC-BOULAHIA",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-CHAOUI",
+   "active": true,
+   "practitioner_ref": "PRAC-CHAOUI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-FASSI_FIHRI",
+   "active": true,
+   "practitioner_ref": "PRAC-FASSI_FIHRI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie réfractive",
+   "_location_ref": "LOC-REFRACT"
+  },
+  {
+   "role_id": "ROLE-GHALI",
+   "active": true,
+   "practitioner_ref": "PRAC-GHALI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie de la cataracte",
+   "_location_ref": "LOC-CATARACT"
+  },
+  {
+   "role_id": "ROLE-IDRISSI_KAITOUNI",
+   "active": true,
+   "practitioner_ref": "PRAC-IDRISSI_KAITOUNI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-JAIDI",
+   "active": true,
+   "practitioner_ref": "PRAC-JAIDI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-LAMRANI",
+   "active": true,
+   "practitioner_ref": "PRAC-LAMRANI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie réfractive",
+   "_location_ref": "LOC-REFRACT"
+  },
+  {
+   "role_id": "ROLE-LYAZIDI",
+   "active": true,
+   "practitioner_ref": "PRAC-LYAZIDI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-MANSOURI",
+   "active": true,
+   "practitioner_ref": "PRAC-MANSOURI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Ophtalmologie générale",
+   "_location_ref": "LOC-GENERAL"
+  },
+  {
+   "role_id": "ROLE-MERNISSI",
+   "active": true,
+   "practitioner_ref": "PRAC-MERNISSI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-MRABET",
+   "active": true,
+   "practitioner_ref": "PRAC-MRABET",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie de la cataracte",
+   "_location_ref": "LOC-CATARACT"
+  },
+  {
+   "role_id": "ROLE-MRANI",
+   "active": true,
+   "practitioner_ref": "PRAC-MRANI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-OULKADI",
+   "active": true,
+   "practitioner_ref": "PRAC-OULKADI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-RAHIMI",
+   "active": true,
+   "practitioner_ref": "PRAC-RAHIMI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Chirurgie réfractive",
+   "_location_ref": "LOC-REFRACT"
+  },
+  {
+   "role_id": "ROLE-TOUIMI",
+   "active": true,
+   "practitioner_ref": "PRAC-TOUIMI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Rétinologie",
+   "_location_ref": "LOC-RETINA"
+  },
+  {
+   "role_id": "ROLE-ZAIDANE",
+   "active": true,
+   "practitioner_ref": "PRAC-ZAIDANE",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  },
+  {
+   "role_id": "ROLE-ZERHOUNI",
+   "active": true,
+   "practitioner_ref": "PRAC-ZERHOUNI",
+   "org_ref": "ORG-ALBACAR",
+   "code_label": "Médecin senior",
+   "specialty_label": "Glaucomatologie",
+   "_location_ref": "LOC-GLAUCOMA"
+  }
+ ]
+}

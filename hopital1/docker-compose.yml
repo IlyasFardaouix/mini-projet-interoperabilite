@@ -1,0 +1,23 @@
+# Oracle du CHU (H1) pour le developpement et les tests : une seule commande.
+#   docker compose up -d                       (premier demarrage : quelques minutes)
+#   python initialiser_base_h1.py --donnees    cree les tables et charge le jeu fictif
+# Le port n'est expose que sur la boucle locale. Le mot de passe vient du .env, jamais du depot.
+services:
+  oracle-h1:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: oracle-h1
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_ADMIN_PWD:?definir ORACLE_ADMIN_PWD dans .env}
+      APP_USER: ${ORACLE_USER:-hopital1}
+      APP_USER_PASSWORD: ${ORACLE_PWD:?definir ORACLE_PWD dans .env}
+    ports:
+      - "127.0.0.1:1521:1521"
+    volumes:
+      - donnees_h1:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+volumes:
+  donnees_h1:

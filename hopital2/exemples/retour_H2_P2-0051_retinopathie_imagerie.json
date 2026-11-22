@@ -1,0 +1,829 @@
+{
+  "resourceType": "Bundle",
+  "id": "cf5910aa-ecf6-4fb0-9a6d-68872e40259d",
+  "type": "transaction",
+  "timestamp": "2026-11-21T09:58:39Z",
+  "meta": {
+    "source": "H2-patient-P2-0051",
+    "tag": [
+      {
+        "system": "urn:clinique-al-bacar:export",
+        "code": "H2-TO-FHIR",
+        "display": "Export H2 → FHIR R5"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "http://localhost:8002/fhir/Patient/P2-0051",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "P2-0051",
+        "identifier": [
+          {
+            "system": "urn:clinique-al-bacar:patient",
+            "value": "P2-0051"
+          },
+          {
+            "use": "official",
+            "system": "urn:ma:cin",
+            "value": "AB123456"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "use": "official",
+            "family": "Alaoui",
+            "given": [
+              "Youssef"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1968-04-12",
+        "address": [
+          {
+            "line": [
+              "12 Rue Hassan II"
+            ],
+            "city": "Casablanca",
+            "country": "MA"
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+212638780038"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient",
+        "ifNoneExist": "identifier=urn:ma:cin|AB123456"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Consent/consent-P2-0051",
+      "resource": {
+        "resourceType": "Consent",
+        "id": "consent-P2-0051",
+        "status": "active",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "59284-0",
+                "display": "Consent Document"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "date": "2026-09-14",
+        "controller": [
+          {
+            "reference": "Organization/ORG-ALBACAR",
+            "display": "Clinique Al Baçar"
+          }
+        ],
+        "policyBasis": {
+          "url": "https://www.cndp.ma"
+        },
+        "decision": "permit",
+        "verification": [
+          {
+            "verified": true,
+            "verificationType": {
+              "text": "signature"
+            },
+            "verifiedWith": {
+              "display": "patient"
+            },
+            "verificationDate": [
+              "2026-09-14"
+            ]
+          }
+        ],
+        "provision": [
+          {
+            "purpose": [
+              {
+                "code": "care-continuity",
+                "display": "care-continuity"
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Consent/consent-P2-0051"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Observation/blood-P2-0051",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "blood-P2-0051",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "882-1",
+              "display": "ABO and Rh group [Type] in Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "valueString": "B+"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/blood-P2-0051"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/AllergyIntolerance/ALG-P2-0051-01",
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "ALG-P2-0051-01",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "verificationStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+              "code": "confirmed"
+            }
+          ]
+        },
+        "category": [
+          "medication"
+        ],
+        "criticality": "high",
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "372639009",
+              "display": "Fluorescein sodium"
+            }
+          ],
+          "text": "Fluorescein sodium"
+        },
+        "patient": {
+          "reference": "Patient/P2-0051"
+        },
+        "recordedDate": "2026-07-15",
+        "reaction": [
+          {
+            "manifestation": [
+              {
+                "concept": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "126485001",
+                      "display": "Urticaria"
+                    }
+                  ],
+                  "text": "Urticaria"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "AllergyIntolerance/ALG-P2-0051-01"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Organization/ORG-ALBACAR",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "ORG-ALBACAR",
+        "active": true,
+        "identifier": [
+          {
+            "value": "CLINIQUE-AL-BACAR"
+          }
+        ],
+        "type": [
+          {
+            "text": "Clinique privée d'ophtalmologie"
+          }
+        ],
+        "name": "Clinique Al Baçar",
+        "endpoint": [
+          {
+            "reference": "Endpoint/EP-PACS-001"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Organization/ORG-ALBACAR"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Endpoint/EP-PACS-001",
+      "resource": {
+        "resourceType": "Endpoint",
+        "id": "EP-PACS-001",
+        "status": "active",
+        "connectionType": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/endpoint-connection-type",
+                "code": "dicom-wado-rs"
+              }
+            ]
+          }
+        ],
+        "name": "PACS Orthanc — DICOMweb WADO-RS",
+        "address": "http://localhost:8042/dicom-web",
+        "payload": [
+          {
+            "mimeType": [
+              "application/dicom"
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Endpoint/EP-PACS-001"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Encounter/V-P2-0051-01",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "V-P2-0051-01",
+        "status": "completed",
+        "class": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+                "code": "AMB",
+                "display": "Ambulatory"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "serviceProvider": {
+          "reference": "Organization/ORG-ALBACAR",
+          "display": "Clinique Al Baçar"
+        },
+        "type": [
+          {
+            "text": "Retina"
+          }
+        ],
+        "actualPeriod": {
+          "start": "2026-09-20T14:33:32Z",
+          "end": "2026-09-20T15:33:32Z"
+        },
+        "reason": [
+          {
+            "value": [
+              {
+                "concept": {
+                  "text": "Macular degeneration check"
+                }
+              }
+            ]
+          }
+        ],
+        "participant": [
+          {
+            "actor": {
+              "display": "Dr. Touimi"
+            }
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Encounter/V-P2-0051-01"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Condition/cond-V-P2-0051-01-1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-V-P2-0051-01-1",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "E11.3",
+              "display": "Diabetic retinopathy"
+            }
+          ],
+          "text": "Diabetic retinopathy"
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Condition/cond-V-P2-0051-01-1"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Condition/cond-V-P2-0051-01-2",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-V-P2-0051-01-2",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "H36.0",
+              "display": "Diabetic retinopathy — manifestation"
+            }
+          ],
+          "text": "Diabetic retinopathy — manifestation"
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Condition/cond-V-P2-0051-01-2"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Observation/obs-V-P2-0051-01-1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-V-P2-0051-01-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "exam",
+                "display": "Exam"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "79892-6",
+              "display": "Intraocular pressure of Right eye"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "effectiveDateTime": "2026-09-20T14:43:32Z",
+        "bodySite": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "18944008",
+              "display": "Right eye structure"
+            }
+          ],
+          "text": "right eye"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "normal"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "low": {
+              "value": 10,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            },
+            "high": {
+              "value": 21,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          }
+        ],
+        "valueQuantity": {
+          "value": 15,
+          "unit": "mm[Hg]",
+          "system": "http://unitsofmeasure.org",
+          "code": "mm[Hg]"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/obs-V-P2-0051-01-1"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Observation/obs-V-P2-0051-01-2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-V-P2-0051-01-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "exam",
+                "display": "Exam"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "79893-4",
+              "display": "Intraocular pressure of Left eye"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "effectiveDateTime": "2026-09-20T14:43:32Z",
+        "bodySite": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "8966001",
+              "display": "Left eye structure"
+            }
+          ],
+          "text": "left eye"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "normal"
+              }
+            ]
+          }
+        ],
+        "referenceRange": [
+          {
+            "low": {
+              "value": 10,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            },
+            "high": {
+              "value": 21,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          }
+        ],
+        "valueQuantity": {
+          "value": 14,
+          "unit": "mm[Hg]",
+          "system": "http://unitsofmeasure.org",
+          "code": "mm[Hg]"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/obs-V-P2-0051-01-2"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Observation/obs-V-P2-0051-01-3",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-V-P2-0051-01-3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs",
+                "display": "Vital Signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "85354-9",
+              "display": "Blood pressure panel"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "effectiveDateTime": "2026-09-20T14:45:32Z",
+        "component": [
+          {
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "8480-6",
+                  "display": "Systolic blood pressure"
+                }
+              ]
+            },
+            "valueQuantity": {
+              "value": 137,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          },
+          {
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "8462-4",
+                  "display": "Diastolic blood pressure"
+                }
+              ]
+            },
+            "valueQuantity": {
+              "value": 84,
+              "unit": "mm[Hg]",
+              "system": "http://unitsofmeasure.org",
+              "code": "mm[Hg]"
+            }
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/obs-V-P2-0051-01-3"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/Observation/obs-V-P2-0051-01-4",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-V-P2-0051-01-4",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2339-0",
+              "display": "Glucose [Mass/volume] in Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "effectiveDateTime": "2026-09-20T14:47:32Z",
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "H",
+                "display": "high"
+              }
+            ]
+          }
+        ],
+        "valueQuantity": {
+          "value": 254,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/obs-V-P2-0051-01-4"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/ImagingStudy/img-V-P2-0051-01",
+      "resource": {
+        "resourceType": "ImagingStudy",
+        "id": "img-V-P2-0051-01",
+        "status": "available",
+        "identifier": [
+          {
+            "system": "urn:dicom:uid",
+            "value": "urn:oid:2.25.11060236952204337488"
+          },
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "ACSN",
+                  "display": "Accession ID"
+                }
+              ]
+            },
+            "value": "ACC-005185"
+          }
+        ],
+        "modality": [
+          {
+            "coding": [
+              {
+                "system": "http://dicom.nema.org/resources/ontology/DCM",
+                "code": "OP",
+                "display": "Ophthalmic Photography"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "endpoint": [
+          {
+            "reference": "Endpoint/EP-PACS-001"
+          }
+        ],
+        "numberOfInstances": 2,
+        "description": "Color fundus photography, both eyes"
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ImagingStudy/img-V-P2-0051-01"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/DiagnosticReport/RPT-V-P2-0051-01",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "RPT-V-P2-0051-01",
+        "status": "final",
+        "code": {
+          "text": "Fond d'œil — rétinographie couleur"
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "effectiveDateTime": "2026-09-20T14:48:32Z",
+        "issued": "2026-09-20T15:18:32Z",
+        "performer": [
+          {
+            "display": "Dr. Touimi"
+          }
+        ],
+        "study": [
+          {
+            "reference": "ImagingStudy/img-V-P2-0051-01"
+          }
+        ],
+        "conclusion": "Rétinopathie diabétique documentée. Suivi à 6 mois."
+      },
+      "request": {
+        "method": "PUT",
+        "url": "DiagnosticReport/RPT-V-P2-0051-01"
+      }
+    },
+    {
+      "fullUrl": "http://localhost:8002/fhir/ServiceRequest/SR-V-P2-0051-01",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "SR-V-P2-0051-01",
+        "status": "completed",
+        "intent": "order",
+        "code": {
+          "concept": {
+            "text": "Rétinographie couleur des deux yeux"
+          }
+        },
+        "subject": {
+          "reference": "Patient/P2-0051"
+        },
+        "encounter": {
+          "reference": "Encounter/V-P2-0051-01"
+        },
+        "authoredOn": "2026-09-20T14:33:32Z",
+        "requester": {
+          "display": "Dr. Touimi"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ServiceRequest/SR-V-P2-0051-01"
+      }
+    }
+  ],
+  "identifier": {
+    "system": "urn:clinique-al-bacar:echange",
+    "value": "8370fe9f-b163-4c2f-bbbc-6ccb85f04b04"
+  }
+}

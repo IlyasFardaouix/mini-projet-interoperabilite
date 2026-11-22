@@ -1,0 +1,36 @@
+# Tous les tests dans Docker, Oracle reel compris (le seul qui manquait) :
+#
+#   docker compose -f docker-compose.tests.yml up --build --abort-on-container-exit --exit-code-from tests
+#   docker compose -f docker-compose.tests.yml down -v        (nettoyage : supprime aussi la base de test)
+#
+# Premier lancement : 3 a 5 minutes (telechargement de l'image Oracle, ~1 Go, et demarrage de la base).
+# Code de sortie 0 = tout est vert. Aucun port n'est publie : la base de test n'est joignable que par
+# le conteneur `tests`. Les mots de passe ci-dessous sont des valeurs de TEST jetables (base detruite par
+# `down -v`) ; ne jamais les reutiliser ailleurs. Les tests Oracle SUPPRIMENT les tables du schema vise :
+# ici c'est la base jetable, jamais celle du CHU.
+services:
+  oracle-test:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_TEST_ADMIN_PWD:-test-admin-jetable-1A}
+      APP_USER: hopital1
+      APP_USER_PASSWORD: ${ORACLE_TEST_PWD:-test-app-jetable-1A}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  tests:
+    build:
+      context: .
+      dockerfile: tests.Dockerfile
+    depends_on:
+      oracle-test:
+        condition: service_healthy
+    environment:
+      ORACLE_TEST_USER: hopital1
+      ORACLE_TEST_PWD: ${ORACLE_TEST_PWD:-test-app-jetable-1A}
+      ORACLE_TEST_DSN: oracle-test:1521/FREEPDB1
+      ORACLE_TEST_RESET: "oui"
