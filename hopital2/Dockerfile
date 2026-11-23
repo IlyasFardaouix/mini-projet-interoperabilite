@@ -21,13 +21,16 @@ RUN pip install --no-cache-dir -r hopital2/requirements.txt
 COPY securite/ securite/
 # Imagerie DICOM commune (passerelle DICOMweb), sans ses tests.
 COPY imagerie/__init__.py imagerie/dicom.py imagerie/dicomweb.py imagerie/passerelle.py imagerie/
+# Interface du personnel (/ui) : importee au demarrage par api_h2.py, l'API ne
+# demarre pas sans elle.
+COPY interface/ interface/
 
 # Seulement les fichiers dont le service a besoin. Les fichiers test_*.py,
 # demo.py et les generateurs de donnees n'ont rien a faire dans une image :
 # ils agrandissent la surface d'attaque sans rien apporter en production.
 COPY hopital2/api_h2.py hopital2/echange.py hopital2/stores.py \
      hopital2/adaptateur_fhir_h2.py hopital2/adaptateur_h2_fhir.py \
-     hopital2/client_envoi.py hopital2/exemples_h1.py hopital2/
+     hopital2/client_envoi.py hopital2/exemples_h1.py hopital2/ui_h2.py hopital2/
 COPY hopital2/data/ hopital2/data/
 
 # Le journal d'acces est ecrit par l'application : le dossier doit lui appartenir.

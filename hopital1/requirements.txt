@@ -6,3 +6,5 @@ fastapi==0.165.0
 uvicorn==0.54.0
 httpx==0.28.1
 pydicom==3.0.1
+# Chiffrement de la file d'envoi (securite/chiffrement.py, H1_CLE_CHIFFREMENT).
+cryptography==50.0.2

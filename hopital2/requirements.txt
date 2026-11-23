@@ -3,6 +3,9 @@ uvicorn==0.54.0
 pymongo==4.20.1
 python-dotenv==1.2.4
 httpx==0.28.1
+# Chiffrement des dossiers au repos (securite/chiffrement.py, H2_CLE_CHIFFREMENT).
+# Sans elle, l'image Docker de H2 ne demarre pas des que la cle est definie.
+cryptography==50.0.2
 # tests
 pytest==9.2.0
 mongomock==4.3.0

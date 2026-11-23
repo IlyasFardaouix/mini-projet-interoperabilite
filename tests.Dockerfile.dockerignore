@@ -20,4 +20,5 @@
 **/*.sqlite*
 **/*.db
 archive/
+tmp/
 .git/

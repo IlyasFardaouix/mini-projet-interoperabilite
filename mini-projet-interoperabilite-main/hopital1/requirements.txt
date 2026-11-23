@@ -1,8 +1,0 @@
-oracledb==26.1.0
-fhir.resources==8.3.0
-python-dotenv==1.2.4
-pytest==9.2.0
-fastapi==0.165.0
-uvicorn==0.54.0
-httpx==0.28.1
-pydicom==3.0.1

@@ -1,6 +1,0 @@
-.env
-sortie/
-__pycache__/
-.pytest_cache/
-.venv/
-validation/validator_cli.jar

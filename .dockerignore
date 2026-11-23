@@ -18,6 +18,7 @@
 **/*.sqlite*
 **/*.db
 archive/
+tmp/
 .git/
 securite/tests/
 securite/outils/
